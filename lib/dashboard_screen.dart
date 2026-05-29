@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 import 'package:flutter_volume_controller/flutter_volume_controller.dart';
+import 'update_helper.dart';
 
 // ==========================================
 // MÀN HÌNH ĐIỀU KHIỂN CHÍNH (DASHBOARD)
@@ -78,45 +79,69 @@ class _DashboardScreenState extends State<DashboardScreen> {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               const SizedBox(height: 20),
-              Center(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: LinearGradient(
-                          colors: [Color(0xFF38BDF8), Color(0xFF0284C7)],
-                        ),
-                      ),
-                      child: const Icon(
-                        Icons.volume_up,
-                        size: 28,
-                        color: Colors.white,
+
+              // ĐÃ SỬA: Gom Icon và Tiêu đề vào một Row riêng biệt
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                        colors: [Color(0xFF38BDF8), Color(0xFF0284C7)],
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    const Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "Volume Bubble",
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                        Text(
-                          "Đồng bộ Samsung S25 Plus Auto-snap",
-                          style: TextStyle(fontSize: 12, color: Colors.white60),
-                        ),
-                      ],
+                    child: const Icon(
+                      Icons.volume_up,
+                      size: 28,
+                      color: Colors.white,
                     ),
-                  ],
+                  ),
+                  const SizedBox(width: 12),
+                  const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Volume Bubble",
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      Text(
+                        "Đồng bộ Samsung S25 Plus Auto-snap",
+                        style: TextStyle(fontSize: 12, color: Colors.white60),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 24),
+
+              // ĐÃ SỬA: Đưa Nút cập nhật xuống dưới để nó chiếm trọn chiều ngang mà không bị lỗi
+              ElevatedButton.icon(
+                onPressed: () {
+                  UpdateHelper.checkForUpdates(context, showMessage: true);
+                },
+                icon: const Icon(Icons.system_update, color: Colors.white),
+                label: const Text(
+                  "Kiểm tra bản cập nhật mới",
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1E293B),
+                  foregroundColor: const Color(0xFF38BDF8),
+                  minimumSize: const Size(double.infinity, 50),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: const BorderSide(color: Colors.white10),
+                  ),
                 ),
               ),
+
               const SizedBox(height: 30),
 
               // CARD TRẠNG THÁI HIỂN THỊ
@@ -201,8 +226,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             alignment: OverlayAlignment.centerRight,
                             height: 480,
                             // Chiều cao tối đa khi bung thanh dọc
-                            width:
-                                200, // Chiều rộng đủ cho bong bóng tròn và dọc
+                            width: 200,
                           );
                         }
                         final active = await FlutterOverlayWindow.isActive();
