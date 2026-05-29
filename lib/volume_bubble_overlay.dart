@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_volume_controller/flutter_volume_controller.dart';
+import 'dart:ui';
+import 'package:flutter/services.dart'; // Thêm thư viện này để dùng tính năng Rung
 
 // ==========================================
 // WIDGET BONG BÓNG TRÔI NỔI (CHẠY NỀN OVERLAY)
@@ -61,6 +63,8 @@ class _VolumeBubbleOverlayState extends State<VolumeBubbleOverlay> {
   }
 
   void _increaseVolume() {
+    // Thêm dòng này để rung nhẹ khi bấm dấu +
+    HapticFeedback.lightImpact();
     double nVol = (_volumeValue + 0.07).clamp(0.0, 1.0);
     FlutterVolumeController.setVolume(nVol, stream: AudioStream.music);
     setState(() {
@@ -70,6 +74,8 @@ class _VolumeBubbleOverlayState extends State<VolumeBubbleOverlay> {
   }
 
   void _decreaseVolume() {
+    // Thêm dòng này để rung nhẹ khi bấm dấu -
+    HapticFeedback.lightImpact();
     double nVol = (_volumeValue - 0.07).clamp(0.0, 1.0);
     FlutterVolumeController.setVolume(nVol, stream: AudioStream.music);
     setState(() {
@@ -93,31 +99,45 @@ class _VolumeBubbleOverlayState extends State<VolumeBubbleOverlay> {
       color: Colors.transparent,
       elevation: 0,
       child: Center(
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 250),
-          curve: Curves.easeOutCubic,
-          width: _bubbleSize,
-          height: _isExpanded ? _expandedHeight : _bubbleSize,
-          decoration: BoxDecoration(
-            // ĐÃ LÀM MỜ THÊM: Giảm từ 0.85 xuống 0.60
-            color: const Color(0xFF0F172A).withOpacity(0.5),
-            borderRadius: BorderRadius.circular(100),
-            border: Border.all(
-              color: const Color(0xFF38BDF8).withOpacity(0.3),
-              width: 1.5,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.15), // Làm bóng mờ nhạt hơn
-                blurRadius: 8,
-                spreadRadius: 1,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(
+            100,
+          ), // Bo tròn để hiệu ứng kính không bị tràn viền
+          child: BackdropFilter(
+            filter: ImageFilter.blur(
+              sigmaX: 12.0,
+              sigmaY: 12.0,
+            ), // Độ nhòe của lớp kính
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeOutCubic,
+              width: _bubbleSize,
+              height: _isExpanded ? _expandedHeight : _bubbleSize,
+              decoration: BoxDecoration(
+                // Giảm độ đục xuống thật thấp (0.2) để lộ lớp kính nhòe
+                color: const Color(0xFF0F172A).withOpacity(0.2),
+                borderRadius: BorderRadius.circular(100),
+                border: Border.all(
+                  color: const Color(0xFF38BDF8).withOpacity(0.3),
+                  width: 1.5,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(
+                      0.15,
+                    ), // Làm bóng mờ nhạt hơn
+                    blurRadius: 8, // Độ nhòe của bóng
+                    // Bạn có thể thêm offset ở đây nếu muốn bóng đổ về một hướng cụ thể, ví dụ:
+                    // offset: const Offset(0, 4),
+                  ),
+                ],
               ),
-            ],
+
+              child: _isExpanded
+                  ? _buildExpandedToolbar()
+                  : _buildCollapsedCircularBubble(volPercentage),
+            ),
           ),
-          clipBehavior: Clip.antiAlias,
-          child: _isExpanded
-              ? _buildExpandedToolbar()
-              : _buildCollapsedCircularBubble(volPercentage),
         ),
       ),
     );

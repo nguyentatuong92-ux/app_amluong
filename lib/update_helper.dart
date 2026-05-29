@@ -6,9 +6,9 @@ import 'package:open_filex/open_filex.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 class UpdateHelper {
-  // Đường dẫn API lấy thông tin phiên bản mới nhất từ kho lưu trữ của bạn
+  // Đã sửa thành đường dẫn API chuẩn của GitHub để lấy bản Release mới nhất
   static const String _githubApiUrl =
-      "https://api.github.com/repos/hoangkimkhs/app-am-luong/releases/latest";
+      "https://api.github.com/repos/nguyentatuong92-ux/am_luong_app/releases/latest";
 
   static Future<void> checkForUpdates(
     BuildContext context, {
@@ -28,10 +28,11 @@ class UpdateHelper {
       PackageInfo packageInfo = await PackageInfo.fromPlatform();
       String currentVersion = packageInfo.version;
 
-      // 2. Lấy thông tin bản phát hành mới nhất từ GitHub
+      // 2. Lấy thông tin bản phát hành mới nhất từ GitHub API
       final response = await Dio().get(_githubApiUrl);
+
       if (response.statusCode == 200) {
-        // Tag trên github thường có chữ 'v' (vd: v1.0.1), ta cắt bỏ chữ 'v' để so sánh
+        // Tag trên github thường có chữ 'v' (vd: v1.0.2), ta cắt bỏ chữ 'v' để so sánh
         String latestVersion = response.data['tag_name'].toString().replaceAll(
           'v',
           '',
@@ -59,6 +60,7 @@ class UpdateHelper {
         }
       }
     } catch (e) {
+      debugPrint("Lỗi kiểm tra cập nhật: $e");
       if (showMessage && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Không thể kiểm tra cập nhật lúc này.")),
@@ -166,17 +168,22 @@ class UpdateHelper {
         },
       );
 
-      // Tải xong, tắt bảng tiến trình và mở file cài đặt
+      // Tải xong, tắt bảng tiến trình
       if (context.mounted) {
         Navigator.pop(context);
       }
-      await OpenFilex.open(savePath); // Kích hoạt bộ cài đặt của Android
+
+      // Kích hoạt bộ cài đặt của Android
+      await OpenFilex.open(savePath);
     } catch (e) {
+      debugPrint("Lỗi tải file: $e");
       if (context.mounted) {
         Navigator.pop(context);
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("Lỗi tải xuống!")));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Lỗi tải xuống! Vui lòng kiểm tra lại mạng."),
+          ),
+        );
       }
     }
   }
