@@ -18,7 +18,11 @@ class UpdateHelper {
       if (showMessage) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text("Đang kiểm tra cập nhật..."),
+            backgroundColor: Color(0xFF64B5F6),
+            content: Text(
+              "Đang kiểm tra cập nhật...",
+              style: TextStyle(fontSize: 18),
+            ),
             duration: Duration(seconds: 1),
           ),
         );
@@ -55,7 +59,13 @@ class UpdateHelper {
           }
         } else if (showMessage && context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Bạn đang dùng phiên bản mới nhất!")),
+            const SnackBar(
+              backgroundColor: Color(0xFF64B5F6),
+              content: Text(
+                "Bạn đang dùng phiên bản mới nhất!",
+                style: TextStyle(fontSize: 18),
+              ),
+            ),
           );
         }
       }
@@ -63,7 +73,13 @@ class UpdateHelper {
       debugPrint("Lỗi kiểm tra cập nhật: $e");
       if (showMessage && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Không thể kiểm tra cập nhật lúc này.")),
+          const SnackBar(
+            backgroundColor: Color(0xFF64B5F6),
+            content: Text(
+              "Không thể kiểm tra cập nhật lúc này.",
+              style: TextStyle(fontSize: 16),
+            ),
+          ),
         );
       }
     }

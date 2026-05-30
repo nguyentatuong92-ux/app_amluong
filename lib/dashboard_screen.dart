@@ -2,11 +2,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 import 'package:flutter_volume_controller/flutter_volume_controller.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'update_helper.dart';
 
-// ==========================================
-// MÀN HÌNH ĐIỀU KHIỂN CHÍNH (DASHBOARD)
-// ==========================================
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
 
@@ -18,14 +17,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
   bool _isOverlayGranted = false;
   bool _isBubbleActive = false;
   double _currentVolume = 0.0;
+  String _currentAppVersion = "Đang tải...";
+
+  // BIẾN CÀI ĐẶT
+  double _inactiveOpacity = 0.5;
+  double _bubbleSize = 68.0; // Mặc định kích thước là 68
 
   @override
   void initState() {
     super.initState();
     _checkPermissions();
     _initVolume();
+    _loadSettings();
+    _loadAppVersion();
 
-    // Đồng bộ định kỳ trạng thái bật/tắt của bóng nổi
     Timer.periodic(const Duration(seconds: 1), (timer) async {
       final active = await FlutterOverlayWindow.isActive();
       final granted = await FlutterOverlayWindow.isPermissionGranted();
@@ -36,6 +41,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
         });
       }
     });
+  }
+
+  Future<void> _loadAppVersion() async {
+    PackageInfo packageInfo = await PackageInfo.fromPlatform();
+    if (mounted) {
+      setState(() {
+        _currentAppVersion = packageInfo.version;
+      });
+    }
+  }
+
+  // Tải cài đặt từ bộ nhớ
+  Future<void> _loadSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _inactiveOpacity = prefs.getDouble('inactiveOpacity') ?? 0.5;
+      _bubbleSize = prefs.getDouble('bubbleSize') ?? 68.0;
+    });
+  }
+
+  // Lưu cài đặt vào bộ nhớ
+  Future<void> _saveSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble('inactiveOpacity', _inactiveOpacity);
+    await prefs.setDouble('bubbleSize', _bubbleSize);
   }
 
   Future<void> _checkPermissions() async {
@@ -78,9 +108,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const SizedBox(height: 20),
+              const SizedBox(height: 10),
 
-              // ĐÃ SỬA: Gom Icon và Tiêu đề vào một Row riêng biệt
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -121,11 +150,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
               const SizedBox(height: 24),
 
-              // ĐÃ SỬA: Đưa Nút cập nhật xuống dưới để nó chiếm trọn chiều ngang mà không bị lỗi
               ElevatedButton.icon(
-                onPressed: () {
-                  UpdateHelper.checkForUpdates(context, showMessage: true);
-                },
+                onPressed: () =>
+                    UpdateHelper.checkForUpdates(context, showMessage: true),
                 icon: const Icon(Icons.system_update, color: Colors.white),
                 label: const Text(
                   "Kiểm tra bản cập nhật mới",
@@ -142,9 +169,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
               ),
 
-              const SizedBox(height: 30),
+              const SizedBox(height: 8),
+              Text(
+                "Phiên bản hiện tại: v$_currentAppVersion",
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Colors.white54,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
 
-              // CARD TRẠNG THÁI HIỂN THỊ
+              const SizedBox(height: 24),
+
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(20),
@@ -162,73 +198,41 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
                 child: Column(
                   children: [
-                    const Text(
-                      "TRẠNG THÁI BÓNG ÂM LƯỢNG",
+                    Text(
+                      _isBubbleActive ? "ĐANG HOẠT ĐỘNG" : "ĐANG TẮT",
                       style: TextStyle(
-                        fontSize: 11,
+                        fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: Colors.white60,
+                        color: _isBubbleActive
+                            ? const Color(0xFF34D399)
+                            : const Color(0xFFF87171),
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          width: 10,
-                          height: 10,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: _isBubbleActive
-                                ? const Color(0xFF10B981)
-                                : const Color(0xFFEF4444),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          _isBubbleActive ? "ĐANG HOẠT ĐỘNG" : "ĐANG TẮT",
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: _isBubbleActive
-                                ? const Color(0xFF34D399)
-                                : const Color(0xFFF87171),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 16),
                     ElevatedButton.icon(
                       onPressed: () async {
-                        bool isGranted =
-                            await FlutterOverlayWindow.isPermissionGranted();
-
-                        if (!isGranted) {
-                          bool? requestResult =
-                              await FlutterOverlayWindow.requestPermission();
-                          if (requestResult == true) {
+                        if (!await FlutterOverlayWindow.isPermissionGranted()) {
+                          if (await FlutterOverlayWindow.requestPermission() ==
+                              true) {
                             setState(() {
                               _isOverlayGranted = true;
                             });
                           }
                           return;
                         }
-
                         if (_isBubbleActive) {
                           await FlutterOverlayWindow.closeOverlay();
                         } else {
-                          // Thay đổi không gian vẽ phù hợp với giao diện dọc (+/-)
                           await FlutterOverlayWindow.showOverlay(
                             enableDrag: true,
-                            overlayTitle: "Volume Floating Ball",
-                            overlayContent: "Bóng âm lượng đang hoạt động",
                             flag: OverlayFlag.defaultFlag,
                             alignment: OverlayAlignment.centerRight,
                             height: 480,
-                            // Chiều cao tối đa khi bung thanh dọc
                             width: 200,
                           );
                         }
+
+                        // Đã sửa lỗi await ở đây
                         final active = await FlutterOverlayWindow.isActive();
                         setState(() {
                           _isBubbleActive = active;
@@ -239,13 +243,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         color: Colors.white,
                       ),
                       label: Text(
-                        _isBubbleActive
-                            ? "Tắt Bong Bóng Trôi Nổi"
-                            : "Bật Bong Bóng Trôi Nổi",
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                        ),
+                        _isBubbleActive ? "Tắt Bong Bóng" : "Bật Bong Bóng",
+                        style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: _isBubbleActive
@@ -264,7 +263,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
               const SizedBox(height: 20),
 
-              // THANH TEST ÂM LƯỢNG ĐỒNG BỘ TRỰC TIẾP
+              // KHU VỰC CÀI ĐẶT
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -274,18 +273,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    const Text(
+                      "Cài đặt hiển thị",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // THANH KÉO KÍCH THƯỚC
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         const Text(
-                          "Âm lượng Đa phương tiện",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
+                          "Kích thước bong bóng:",
+                          style: TextStyle(fontSize: 13, color: Colors.white70),
                         ),
                         Text(
-                          "${(_currentVolume * 100).toInt()}%",
+                          "${_bubbleSize.toInt()} px",
                           style: const TextStyle(
                             color: Color(0xFF38BDF8),
                             fontWeight: FontWeight.bold,
@@ -294,74 +301,80 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ],
                     ),
                     Slider(
-                      value: _currentVolume,
-                      onChanged: (val) {
-                        setState(() {
-                          _currentVolume = val;
-                        });
-                        FlutterVolumeController.setVolume(
-                          val,
-                          stream: AudioStream.music,
-                        );
-                      },
+                      value: _bubbleSize,
+                      min: 50.0,
+                      max: 80.0,
+                      onChanged: (val) => setState(() => _bubbleSize = val),
                       activeColor: const Color(0xFF38BDF8),
                       inactiveColor: Colors.white10,
                     ),
-                    const Text(
-                      "Kéo thanh gạt này để kiểm tra tính năng đồng bộ thời gian thực.",
-                      style: TextStyle(fontSize: 10, color: Colors.white30),
-                    ),
-                  ],
-                ),
-              ),
 
-              const SizedBox(height: 20),
+                    const Divider(color: Colors.white10, height: 10),
 
-              // CHI TIẾT TỐI ƯU HÓA HOẠT ĐỘNG TRÊN SAMSUNG GALAXY S25 PLUS
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1E293B),
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: const Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+                    // THANH KÉO ĐỘ MỜ
                     Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Icon(Icons.stars, color: Color(0xFFF39C12), size: 20),
-                        SizedBox(width: 8),
+                        const Text(
+                          "Độ mờ khi không chạm:",
+                          style: TextStyle(fontSize: 13, color: Colors.white70),
+                        ),
                         Text(
-                          "Mẹo tránh bị tắt ngầm (One UI 7.x/6.x)",
-                          style: TextStyle(
+                          "${(_inactiveOpacity * 100).toInt()}%",
+                          style: const TextStyle(
+                            color: Color(0xFF38BDF8),
                             fontWeight: FontWeight.bold,
-                            fontSize: 15,
-                            color: Colors.white,
                           ),
                         ),
                       ],
                     ),
-                    SizedBox(height: 10),
-                    Text(
-                      "Điện thoại Samsung S25 Plus của bạn có khả năng quản lý RAM cực gắt. Để tránh bị hệ thống tắt bong bóng khi tắt màn hình, hãy thiết lập:",
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.white70,
-                        height: 1.5,
+                    Slider(
+                      value: _inactiveOpacity,
+                      min: 0.1,
+                      max: 1.0,
+                      onChanged: (val) =>
+                          setState(() => _inactiveOpacity = val),
+                      activeColor: const Color(0xFF38BDF8),
+                      inactiveColor: Colors.white10,
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // NÚT ÁP DỤNG
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: ElevatedButton.icon(
+                        onPressed: () async {
+                          await _saveSettings();
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  "Đã lưu! Vui lòng TẮT và BẬT LẠI bong bóng để áp dụng.",
+                                ),
+                                backgroundColor: Color(0xFF10B981),
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          }
+                        },
+                        icon: const Icon(Icons.check_circle_outline, size: 18),
+                        label: const Text("Áp dụng"),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(
+                            0xFF38BDF8,
+                          ).withOpacity(0.15),
+                          foregroundColor: const Color(0xFF38BDF8),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: const BorderSide(
+                              color: Color(0xFF38BDF8),
+                              width: 1,
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
-                    SizedBox(height: 10),
-                    BulletItem(
-                      text: "1. Vào Cài đặt -> Pin -> Giới hạn chạy ngầm.",
-                    ),
-                    BulletItem(
-                      text:
-                          "2. Chọn mục 'Ứng dụng không bao giờ ngủ' (Never sleeping).",
-                    ),
-                    BulletItem(
-                      text:
-                          "3. Thêm ứng dụng 'Volume Bubble' của bạn vào danh sách để nó chạy vô hạn.",
                     ),
                   ],
                 ),
@@ -369,45 +382,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-// Widget định dạng dòng ghi chú
-class BulletItem extends StatelessWidget {
-  final String text;
-
-  const BulletItem({super.key, required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            margin: const EdgeInsets.only(top: 6),
-            width: 5,
-            height: 5,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              color: Color(0xFF38BDF8),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              text,
-              style: const TextStyle(
-                fontSize: 12,
-                color: Colors.white70,
-                height: 1.4,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
