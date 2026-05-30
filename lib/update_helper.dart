@@ -8,7 +8,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 class UpdateHelper {
   // Đã sửa thành đường dẫn API chuẩn của GitHub để lấy bản Release mới nhất
   static const String _githubApiUrl =
-      "https://api.github.com/repos/nguyentatuong92-ux/am_luong_app/releases/latest";
+      "https://github.com/nguyentatuong92-ux/app_amluong.git";
 
   static Future<void> checkForUpdates(
     BuildContext context, {
