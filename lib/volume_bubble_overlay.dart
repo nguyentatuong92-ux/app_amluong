@@ -4,6 +4,13 @@ import 'package:flutter_volume_controller/flutter_volume_controller.dart';
 import 'dart:ui';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_overlay_window/flutter_overlay_window.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+
+// [MỚI THÊM] Import thư viện Android Intent
+import 'package:android_intent_plus/android_intent.dart';
+import 'package:android_intent_plus/flag.dart';
+import 'dart:developer';
 
 class VolumeBubbleOverlay extends StatefulWidget {
   const VolumeBubbleOverlay({super.key});
@@ -177,6 +184,35 @@ class _VolumeBubbleOverlayState extends State<VolumeBubbleOverlay> {
         _resetTimer();
       },
       onDoubleTap: _toggleMute,
+
+      // [MỚI SỬA] Nhấn giữ sẽ mở Deep Link để đánh thức app
+      // [MỚI SỬA] Nhấn giữ sẽ gọi thẳng tên gói ứng dụng để mở
+      onLongPress: () async {
+        HapticFeedback.heavyImpact(); // Rung điện thoại để báo hiệu
+        log("Đang ra lệnh cho Android mở ứng dụng...");
+
+        try {
+          // 1. Lấy tên gói (Package Name) của app bạn
+          PackageInfo packageInfo = await PackageInfo.fromPlatform();
+          String pkgName = packageInfo.packageName;
+
+          // 2. Tạo lệnh ép Android mở thẳng ứng dụng này lên
+          AndroidIntent intent = AndroidIntent(
+            action: 'android.intent.action.MAIN',
+            category: 'android.intent.category.LAUNCHER',
+            package: pkgName,
+            componentName: '$pkgName.MainActivity',
+            flags: [
+              Flag.FLAG_ACTIVITY_NEW_TASK,
+            ], // Cờ bắt buộc để mở app từ nền
+          );
+
+          await intent.launch();
+        } catch (e) {
+          log('Lỗi khi mở app: $e');
+        }
+      },
+
       child: Stack(
         alignment: Alignment.center,
         children: [
@@ -228,10 +264,8 @@ class _VolumeBubbleOverlayState extends State<VolumeBubbleOverlay> {
   Widget _buildExpandedToolbar() {
     int volPercentage = (_volumeValue * 100).toInt();
 
-    // Dùng Column chứa 3 thẻ Expanded để tự động chia đều không gian 3 phần bằng nhau
     return Column(
       children: [
-        // 1. NÚT TĂNG (Tự động chiếm 33.3% chiều cao)
         Expanded(
           child: GestureDetector(
             onTap: _increaseVolume,
@@ -246,8 +280,6 @@ class _VolumeBubbleOverlayState extends State<VolumeBubbleOverlay> {
             ),
           ),
         ),
-
-        // 2. SỐ PHẦN TRĂM (Tự động chiếm 33.3% chiều cao)
         Expanded(
           child: Center(
             child: FittedBox(
@@ -265,8 +297,6 @@ class _VolumeBubbleOverlayState extends State<VolumeBubbleOverlay> {
             ),
           ),
         ),
-
-        // 3. NÚT GIẢM (Tự động chiếm 33.3% chiều cao)
         Expanded(
           child: GestureDetector(
             onTap: _decreaseVolume,

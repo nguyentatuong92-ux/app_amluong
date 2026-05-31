@@ -52,8 +52,13 @@ class UpdateHelper {
           }
         }
 
-        // 3. So sánh phiên bản (Cách so sánh chuỗi đơn giản)
-        if (latestVersion != currentVersion && apkDownloadUrl != null) {
+        // 3. So sánh phiên bản chuyên sâu (Kiểm tra xem bản mới có thực sự LỚN HƠN bản hiện tại không)
+        bool isUpdateAvailable = _isNewVersionGreater(
+          currentVersion,
+          latestVersion,
+        );
+
+        if (isUpdateAvailable && apkDownloadUrl != null) {
           if (context.mounted) {
             _showUpdateDialog(context, latestVersion, apkDownloadUrl);
           }
@@ -77,13 +82,47 @@ class UpdateHelper {
             backgroundColor: Color(0xFF64B5F6),
             content: Text(
               "Không thể kiểm tra cập nhật lúc này.",
-              style: TextStyle(fontSize: 16),
+              style: TextStyle(fontSize: 18),
             ),
           ),
         );
       }
     }
   }
+
+  // --- HÀM MỚI ĐƯỢC THÊM VÀO ĐỂ SO SÁNH PHIÊN BẢN ---
+  static bool _isNewVersionGreater(String current, String latest) {
+    // Tách chuỗi thành mảng các số nguyên (Ví dụ: "1.0.2" -> [1, 0, 2])
+    List<int> currentParts = current
+        .split('.')
+        .map((s) => int.tryParse(s) ?? 0)
+        .toList();
+    List<int> latestParts = latest
+        .split('.')
+        .map((s) => int.tryParse(s) ?? 0)
+        .toList();
+
+    // Cân bằng độ dài của 2 mảng để tránh lỗi (đề phòng trường hợp so sánh "1.0" và "1.0.1")
+    int maxLength = currentParts.length > latestParts.length
+        ? currentParts.length
+        : latestParts.length;
+    while (currentParts.length < maxLength) currentParts.add(0);
+    while (latestParts.length < maxLength) latestParts.add(0);
+
+    // So sánh từng cặp số từ trái sang phải
+    for (int i = 0; i < maxLength; i++) {
+      if (latestParts[i] > currentParts[i]) {
+        return true; // Nếu bản trên GitHub lớn hơn -> Có cập nhật
+      }
+      if (latestParts[i] < currentParts[i]) {
+        return false; // Nếu bản trên GitHub nhỏ hơn -> Không cập nhật
+      }
+    }
+
+    return false; // Nếu bằng nhau hoàn toàn ở mọi mặt -> Không cập nhật
+  }
+
+  // -------------------------------------------------
 
   static void _showUpdateDialog(
     BuildContext context,

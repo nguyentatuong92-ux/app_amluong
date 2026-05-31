@@ -6,6 +6,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'update_helper.dart';
 
+// [MỚI THÊM] Import thư viện developer để in lỗi/thông báo ra console
+import 'dart:developer';
+
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
 
@@ -21,7 +24,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   // BIẾN CÀI ĐẶT
   double _inactiveOpacity = 0.5;
-  double _bubbleSize = 68.0; // Mặc định kích thước là 68
+  double _bubbleSize = 68.0;
+
+  // [MỚI THÊM] Khai báo bộ lắng nghe tín hiệu từ bong bóng
+  StreamSubscription? _overlayListener;
 
   @override
   void initState() {
@@ -30,6 +36,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _initVolume();
     _loadSettings();
     _loadAppVersion();
+
+    // [MỚI THÊM] Kích hoạt hàm lắng nghe ngay khi mở ứng dụng
+    _listenToOverlayEvents();
 
     Timer.periodic(const Duration(seconds: 1), (timer) async {
       final active = await FlutterOverlayWindow.isActive();
@@ -43,6 +52,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
   }
 
+  // [MỚI THÊM] Hàm xử lý lắng nghe tín hiệu từ Overlay
+  void _listenToOverlayEvents() {
+    _overlayListener = FlutterOverlayWindow.overlayListener.listen((event) {
+      log("Nhận được tín hiệu từ Overlay: $event");
+
+      // Nếu bong bóng gửi chữ "open_settings"
+      if (event == "open_settings") {
+        if (mounted) {
+          // Hiển thị một thông báo trên màn hình
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Đã mở ứng dụng từ bong bóng!"),
+              backgroundColor: Color(0xFF10B981),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+
+          // LƯU Ý: Nếu sau này bạn có tạo một màn hình Settings riêng,
+          // bạn sẽ viết lệnh chuyển trang (Navigator.push) ở vị trí này.
+        }
+      }
+    });
+  }
+
+  // [KẾT THÚC PHẦN MỚI THÊM]
+
   Future<void> _loadAppVersion() async {
     PackageInfo packageInfo = await PackageInfo.fromPlatform();
     if (mounted) {
@@ -52,7 +87,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  // Tải cài đặt từ bộ nhớ
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
@@ -61,7 +95,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
   }
 
-  // Lưu cài đặt vào bộ nhớ
   Future<void> _saveSettings() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setDouble('inactiveOpacity', _inactiveOpacity);
@@ -96,6 +129,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void dispose() {
     FlutterVolumeController.removeListener();
+    // [MỚI THÊM] Huỷ bộ lắng nghe khi tắt ứng dụng để giải phóng bộ nhớ
+    _overlayListener?.cancel();
     super.dispose();
   }
 
@@ -232,7 +267,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           );
                         }
 
-                        // Đã sửa lỗi await ở đây
                         final active = await FlutterOverlayWindow.isActive();
                         setState(() {
                           _isBubbleActive = active;
@@ -301,9 +335,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ],
                     ),
                     Slider(
-                      value: _bubbleSize,
-                      min: 50.0,
-                      max: 80.0,
+                      value: _bubbleSize.clamp(40.0, 75.0),
+                      min: 40.0,
+                      max: 75.0,
                       onChanged: (val) => setState(() => _bubbleSize = val),
                       activeColor: const Color(0xFF38BDF8),
                       inactiveColor: Colors.white10,
@@ -352,7 +386,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 content: Text(
                                   "Đã lưu! Vui lòng TẮT và BẬT LẠI bong bóng để áp dụng.",
                                 ),
-                                backgroundColor: Color(0xFF10B981),
+                                backgroundColor: Color(0xFF38BDF8),
                                 behavior: SnackBarBehavior.floating,
                               ),
                             );

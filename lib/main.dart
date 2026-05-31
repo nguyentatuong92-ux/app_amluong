@@ -1,27 +1,77 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
-import 'dashboard_screen.dart';
-import 'volume_bubble_overlay.dart';
+import 'package:flutter_overlay_window/flutter_overlay_window.dart';
+import 'package:app_links/app_links.dart';
+import 'dart:developer';
 
-// 1. ENTRY POINT CHÍNH CỦA ỨNG DỤNG (CHẠY TRANG CÀI ĐẶT)
-void main() {
+// Import các màn hình của bạn
+import 'volume_bubble_overlay.dart';
+import 'dashboard_screen.dart';
+
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Xử lý deep link lúc mở app lần đầu
+  try {
+    final appLinks = AppLinks();
+    // [ĐÃ SỬA LỖI TẠI ĐÂY] Đổi thành getInitialLink() cho phiên bản mới
+    final uri = await appLinks.getInitialLink();
+    if (uri != null) {
+      log('App được mở từ deep link (lần đầu): $uri');
+    }
+  } catch (e) {
+    log('Lỗi đọc deep link: $e');
+  }
+
   runApp(const MyApp());
 }
 
-// 2. ENTRY POINT DÀNH RIÊNG CHO BONG BÓNG TRÔI NỔI CHẠY NỀN ĐỘC LẬP
+// BẮT BUỘC PHẢI CÓ ĐỂ CHẠY BONG BÓNG
 @pragma("vm:entry-point")
 void overlayMain() {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(
     const MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: VolumeBubbleOverlay(), // Gọi giao diện bong bóng từ file riêng
+      home: VolumeBubbleOverlay(),
     ),
   );
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  StreamSubscription<Uri>? _linkSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _initDeepLinkListener();
+  }
+
+  void _initDeepLinkListener() {
+    final appLinks = AppLinks();
+    _linkSubscription = appLinks.uriLinkStream.listen(
+      (uri) {
+        log('Nhận được deep link mới lúc app đang chạy: $uri');
+        // Khi nhận link, Dashboard là màn hình chính nên nó sẽ tự hiện lên
+      },
+      onError: (err) {
+        log('Lỗi deep link: $err');
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _linkSubscription?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -29,11 +79,11 @@ class MyApp extends StatelessWidget {
       title: 'Volume Bubble',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        brightness: Brightness.dark,
-        scaffoldBackgroundColor: const Color(0xFF0F172A), // Màu nền mượt
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
+        scaffoldBackgroundColor: const Color(0xFF0F172A),
       ),
-      home: const DashboardScreen(), // Gọi trang cài đặt chính từ file riêng
+      home: const DashboardScreen(), // Màn hình chính
     );
   }
 }
