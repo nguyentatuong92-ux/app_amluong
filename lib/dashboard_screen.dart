@@ -6,7 +6,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'update_helper.dart';
 
-// [MỚI THÊM] Import thư viện developer để in lỗi/thông báo ra console
 import 'dart:developer';
 
 class DashboardScreen extends StatefulWidget {
@@ -22,11 +21,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
   double _currentVolume = 0.0;
   String _currentAppVersion = "Đang tải...";
 
-  // BIẾN CÀI ĐẶT
+  // [MỚI THÊM] Biến lưu trạng thái xem có bản cập nhật mới không
+  bool _hasNewUpdate = false;
+
   double _inactiveOpacity = 0.5;
   double _bubbleSize = 68.0;
 
-  // [MỚI THÊM] Khai báo bộ lắng nghe tín hiệu từ bong bóng
   StreamSubscription? _overlayListener;
 
   @override
@@ -36,8 +36,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _initVolume();
     _loadSettings();
     _loadAppVersion();
-
-    // [MỚI THÊM] Kích hoạt hàm lắng nghe ngay khi mở ứng dụng
+    _autoCheckForUpdate();
     _listenToOverlayEvents();
 
     Timer.periodic(const Duration(seconds: 1), (timer) async {
@@ -52,15 +51,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
   }
 
-  // [MỚI THÊM] Hàm xử lý lắng nghe tín hiệu từ Overlay
+  void _autoCheckForUpdate() {
+    // [ĐÃ SỬA] Hàm chờ kết quả trả về từ UpdateHelper
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      bool updateAvailable = await UpdateHelper.checkForUpdates(
+        context,
+        showMessage: false,
+      );
+      if (mounted && updateAvailable) {
+        setState(() {
+          _hasNewUpdate = true; // Bật chấm đỏ lên
+        });
+      }
+    });
+  }
+
   void _listenToOverlayEvents() {
     _overlayListener = FlutterOverlayWindow.overlayListener.listen((event) {
       log("Nhận được tín hiệu từ Overlay: $event");
-
-      // Nếu bong bóng gửi chữ "open_settings"
       if (event == "open_settings") {
         if (mounted) {
-          // Hiển thị một thông báo trên màn hình
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text("Đã mở ứng dụng từ bong bóng!"),
@@ -68,15 +78,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
               behavior: SnackBarBehavior.floating,
             ),
           );
-
-          // LƯU Ý: Nếu sau này bạn có tạo một màn hình Settings riêng,
-          // bạn sẽ viết lệnh chuyển trang (Navigator.push) ở vị trí này.
         }
       }
     });
   }
-
-  // [KẾT THÚC PHẦN MỚI THÊM]
 
   Future<void> _loadAppVersion() async {
     PackageInfo packageInfo = await PackageInfo.fromPlatform();
@@ -129,7 +134,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void dispose() {
     FlutterVolumeController.removeListener();
-    // [MỚI THÊM] Huỷ bộ lắng nghe khi tắt ứng dụng để giải phóng bộ nhớ
     _overlayListener?.cancel();
     super.dispose();
   }
@@ -175,8 +179,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                       ),
                       Text(
-                        "Đồng bộ Samsung S25 Plus Auto-snap",
-                        style: TextStyle(fontSize: 12, color: Colors.white60),
+                        "Nhà phát triển: Nguyễn Tá Tưởng",
+                        style: TextStyle(fontSize: 15, color: Colors.white60),
                       ),
                     ],
                   ),
@@ -186,9 +190,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
               const SizedBox(height: 24),
 
               ElevatedButton.icon(
-                onPressed: () =>
-                    UpdateHelper.checkForUpdates(context, showMessage: true),
-                icon: const Icon(Icons.system_update, color: Colors.white),
+                // [ĐÃ SỬA] Đợi hàm chạy xong để cập nhật lại trạng thái
+                onPressed: () async {
+                  bool updateAvailable = await UpdateHelper.checkForUpdates(
+                    context,
+                    showMessage: true,
+                  );
+                  if (mounted) {
+                    setState(() {
+                      _hasNewUpdate =
+                          updateAvailable; // Nếu vẫn còn cập nhật thì giữ chấm đỏ, ngược lại thì tắt
+                    });
+                  }
+                },
+                // [MỚI THÊM] Bọc Icon bằng Badge để hiển thị chấm đỏ
+                icon: Badge(
+                  isLabelVisible: _hasNewUpdate, // Hiển thị khi có bản mới
+                  backgroundColor: Colors.redAccent, // Màu chấm đỏ
+                  child: const Icon(
+                    Icons.system_update,
+                    color: Colors.white,
+                    size: 22,
+                  ),
+                ),
                 label: const Text(
                   "Kiểm tra bản cập nhật mới",
                   style: TextStyle(fontWeight: FontWeight.bold),
@@ -234,7 +258,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 child: Column(
                   children: [
                     Text(
-                      _isBubbleActive ? "ĐANG HOẠT ĐỘNG" : "ĐANG TẮT",
+                      _isBubbleActive ? "ĐANG HOẠT ĐỘNG" : "ĐANG TẮT !",
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -311,19 +335,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       "Cài đặt hiển thị",
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                        fontSize: 18,
                         color: Colors.white,
                       ),
                     ),
                     const SizedBox(height: 16),
 
-                    // THANH KÉO KÍCH THƯỚC
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         const Text(
                           "Kích thước bong bóng:",
-                          style: TextStyle(fontSize: 13, color: Colors.white70),
+                          style: TextStyle(fontSize: 15, color: Colors.white70),
                         ),
                         Text(
                           "${_bubbleSize.toInt()} px",
@@ -345,13 +368,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
                     const Divider(color: Colors.white10, height: 10),
 
-                    // THANH KÉO ĐỘ MỜ
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         const Text(
                           "Độ mờ khi không chạm:",
-                          style: TextStyle(fontSize: 13, color: Colors.white70),
+                          style: TextStyle(fontSize: 15, color: Colors.white70),
                         ),
                         Text(
                           "${(_inactiveOpacity * 100).toInt()}%",
@@ -374,7 +396,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
                     const SizedBox(height: 12),
 
-                    // NÚT ÁP DỤNG
                     Align(
                       alignment: Alignment.centerRight,
                       child: ElevatedButton.icon(
@@ -382,12 +403,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           await _saveSettings();
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
+                              SnackBar(
                                 content: Text(
-                                  "Đã lưu! Vui lòng TẮT và BẬT LẠI bong bóng để áp dụng.",
+                                  "Đã lưu! Vui lòng TẮT và BẬT lại bong bóng để áp dụng.",
+                                  style: TextStyle(fontSize: 20),
                                 ),
-                                backgroundColor: Color(0xFF38BDF8),
+                                backgroundColor: const Color(0xFF64B5F6),
                                 behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(15.0),
+                                ),
                               ),
                             );
                           }
