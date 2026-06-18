@@ -4,8 +4,9 @@ import 'package:flutter_volume_controller/flutter_volume_controller.dart';
 import 'dart:ui';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter_overlay_window/flutter_overlay_window.dart';
+
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 
 // [MỚI THÊM] Import thư viện Android Intent
 import 'package:android_intent_plus/android_intent.dart';
@@ -158,15 +159,17 @@ class _VolumeBubbleOverlayState extends State<VolumeBubbleOverlay> {
                 width: _bubbleSize,
                 height: _isExpanded ? _expandedHeight : _bubbleSize,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0F172A).withOpacity(0.2),
+                  color: const Color(0xFF0F172A).withAlpha((0.2 * 255).toInt()),
                   borderRadius: BorderRadius.circular(100),
                   border: Border.all(
-                    color: const Color(0xFF38BDF8).withOpacity(0.3),
+                    color: const Color(
+                      0xFF38BDF8,
+                    ).withAlpha((0.3 * 255).toInt()),
                     width: 1.5,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.15),
+                      color: Colors.black.withAlpha((0.15 * 255).toInt()),
                       blurRadius: 8,
                     ),
                   ],
@@ -192,31 +195,79 @@ class _VolumeBubbleOverlayState extends State<VolumeBubbleOverlay> {
       },
       onDoubleTap: _toggleMute,
 
-      // [MỚI SỬA] Nhấn giữ sẽ mở Deep Link để đánh thức app
-      // [MỚI SỬA] Nhấn giữ sẽ gọi thẳng tên gói ứng dụng để mở
+      // [MỚI SỬA] Nhấn giữ sẽ mở trình phát nhạc mặc định của hệ thống
       onLongPress: () async {
-        HapticFeedback.heavyImpact(); // Rung điện thoại để báo hiệu
-        log("Đang ra lệnh cho Android mở ứng dụng...");
+        HapticFeedback.heavyImpact();
+        log("Đang mở trình phát nhạc...");
 
+        bool success = false;
+
+        // --- CÁCH 1: Dùng category APP_MUSIC (Phổ biến nhất) ---
         try {
-          // 1. Lấy tên gói (Package Name) của app bạn
-          PackageInfo packageInfo = await PackageInfo.fromPlatform();
-          String pkgName = packageInfo.packageName;
-
-          // 2. Tạo lệnh ép Android mở thẳng ứng dụng này lên
-          AndroidIntent intent = AndroidIntent(
+          final intent = AndroidIntent(
             action: 'android.intent.action.MAIN',
-            category: 'android.intent.category.LAUNCHER',
-            package: pkgName,
-            componentName: '$pkgName.MainActivity',
-            flags: [
-              Flag.FLAG_ACTIVITY_NEW_TASK,
-            ], // Cờ bắt buộc để mở app từ nền
+            category: 'android.intent.category.APP_MUSIC',
+            flags: [Flag.FLAG_ACTIVITY_NEW_TASK],
           );
-
           await intent.launch();
+          success = true;
+          log("Mở app nhạc bằng APP_MUSIC thành công");
         } catch (e) {
-          log('Lỗi khi mở app: $e');
+          log("Cách 1 (APP_MUSIC) lỗi: $e");
+        }
+
+        // --- CÁCH 2: Dùng action MUSIC_PLAYER (Cách cũ) ---
+        if (!success) {
+          try {
+            const intent = AndroidIntent(
+              action: 'android.intent.action.MUSIC_PLAYER',
+              flags: [Flag.FLAG_ACTIVITY_NEW_TASK],
+            );
+            await intent.launch();
+            success = true;
+            log("Mở app nhạc bằng MUSIC_PLAYER thành công");
+          } catch (e) {
+            log("Cách 2 (MUSIC_PLAYER) lỗi: $e");
+          }
+        }
+
+        // --- CÁCH 3: Dùng action VIEW với kiểu audio/* ---
+        if (!success) {
+          try {
+            const intent = AndroidIntent(
+              action: 'android.intent.action.VIEW',
+              type: 'audio/*',
+              flags: [Flag.FLAG_ACTIVITY_NEW_TASK],
+            );
+            await intent.launch();
+            success = true;
+            log("Mở app nhạc bằng audio/* thành công");
+          } catch (e) {
+            log("Cách 3 (audio/*) lỗi: $e");
+          }
+        }
+
+        // --- NẾU TẤT CẢ ĐỀU THẤT BẠI (Máy ảo không có app nhạc) ---
+        if (!success) {
+          log("Không tìm thấy trình phát nhạc nào. Đang mở app để báo lỗi...");
+          try {
+            // 1. Gửi tín hiệu báo lỗi cho Dashboard
+            FlutterOverlayWindow.shareData("music_player_not_found");
+
+            // 2. Mở chính ứng dụng của mình để hiển thị thông báo
+            PackageInfo packageInfo = await PackageInfo.fromPlatform();
+            String pkgName = packageInfo.packageName;
+            AndroidIntent intent = AndroidIntent(
+              action: 'android.intent.action.MAIN',
+              category: 'android.intent.category.LAUNCHER',
+              package: pkgName,
+              componentName: '$pkgName.MainActivity',
+              flags: [Flag.FLAG_ACTIVITY_NEW_TASK],
+            );
+            await intent.launch();
+          } catch (e) {
+            log("Không thể mở app fallback: $e");
+          }
         }
       },
 

@@ -89,6 +89,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           );
         }
+      } else if (event == "music_player_not_found") {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                "❌ Không tìm thấy trình phát nhạc nào trên thiết bị này! Vui lòng cài đặt một ứng dụng nhạc (như Spotify, YouTube Music...).",
+              ),
+              backgroundColor: Color(0xFFEF4444),
+              behavior: SnackBarBehavior.floating,
+              duration: Duration(seconds: 4),
+            ),
+          );
+        }
       }
     });
   }
@@ -331,9 +344,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    const Text(
-                      "Thêm nút gạt vào thanh trạng thái",
-                      style: TextStyle(color: Colors.white),
+                    const FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        "Thêm nút gạt vào thanh trạng thái",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.white),
+                      ),
                     ),
                     const SizedBox(height: 12),
                     Row(
