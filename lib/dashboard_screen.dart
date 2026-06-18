@@ -333,11 +333,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     const SizedBox(height: 16),
                     const Text(
                       "Thêm nút gạt vào thanh trạng thái",
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.white70,
-                        fontWeight: FontWeight.w500,
-                      ),
+                      style: TextStyle(color: Colors.white),
                     ),
                     const SizedBox(height: 12),
                     Row(
@@ -390,15 +386,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       log("Lỗi thêm Tile: ${e.message}");
                                     }
                                   },
-                            icon: const Icon(Icons.add, size: 18),
-                            label: const Text(
-                              "Thêm nút",
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
+                            icon: const Icon(Icons.add, size: 16),
+                            // ĐÃ SỬA: Bọc Text trong FittedBox để chống rớt dòng
+                            label: const FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text("Thêm nút", maxLines: 1),
                             ),
                             style: OutlinedButton.styleFrom(
+                              // ĐÃ SỬA: Giảm padding 2 bên (horizontal) xuống nhỏ hơn
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                                vertical: 12,
+                              ),
                               foregroundColor: const Color(0xFF38BDF8),
                               disabledForegroundColor: Colors.white10,
                               side: BorderSide(
@@ -451,15 +450,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       log("Lỗi khi gỡ Tile: ${e.message}");
                                     }
                                   },
-                            icon: const Icon(Icons.close, size: 18),
-                            label: const Text(
-                              "Hủy thêm",
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
+                            icon: const Icon(Icons.close, size: 16),
+                            // ĐÃ SỬA: Bọc Text trong FittedBox để chống rớt dòng
+                            label: const FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text("Hủy thêm", maxLines: 1),
                             ),
                             style: OutlinedButton.styleFrom(
+                              // ĐÃ SỬA: Giảm padding 2 bên (horizontal) xuống nhỏ hơn
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                                vertical: 12,
+                              ),
                               foregroundColor: const Color(0xFFF87171),
                               disabledForegroundColor: Colors.white10,
                               side: BorderSide(
