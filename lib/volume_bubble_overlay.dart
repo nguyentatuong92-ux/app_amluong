@@ -28,6 +28,8 @@ class _VolumeBubbleOverlayState extends State<VolumeBubbleOverlay> {
   // BIẾN CÀI ĐẶT TỪ BỘ NHỚ
   double _inactiveOpacity = 0.5;
   double _bubbleSize = 68.0;
+  double _displayDuration = 3.0; // Mặc định 3 giây
+  double _animDuration = 300.0; // Mặc định 300ms
 
   // Chiều cao tự động giãn ra bằng 2.6 lần kích thước bong bóng
   double get _expandedHeight => _bubbleSize * 2.6;
@@ -49,6 +51,8 @@ class _VolumeBubbleOverlayState extends State<VolumeBubbleOverlay> {
       setState(() {
         _inactiveOpacity = prefs.getDouble('inactiveOpacity') ?? 0.5;
         _bubbleSize = prefs.getDouble('bubbleSize') ?? 68.0;
+        _displayDuration = prefs.getDouble('displayDuration') ?? 3.0;
+        _animDuration = prefs.getDouble('animDuration') ?? 300.0;
       });
     }
   }
@@ -75,14 +79,17 @@ class _VolumeBubbleOverlayState extends State<VolumeBubbleOverlay> {
 
   void _resetTimer() {
     _collapseTimer?.cancel();
-    _collapseTimer = Timer(const Duration(milliseconds: 3000), () {
-      if (mounted) {
-        _loadSettings();
-        setState(() {
-          _isExpanded = false;
-        });
-      }
-    });
+    _collapseTimer = Timer(
+      Duration(milliseconds: (_displayDuration * 1000).toInt()),
+      () {
+        if (mounted) {
+          _loadSettings();
+          setState(() {
+            _isExpanded = false;
+          });
+        }
+      },
+    );
   }
 
   void _increaseVolume() {
@@ -139,14 +146,14 @@ class _VolumeBubbleOverlayState extends State<VolumeBubbleOverlay> {
       elevation: 0,
       child: AnimatedOpacity(
         opacity: _isExpanded ? 1.0 : _inactiveOpacity,
-        duration: const Duration(milliseconds: 500),
+        duration: Duration(milliseconds: _animDuration.toInt() * 2),
         child: Center(
           child: ClipRRect(
             borderRadius: BorderRadius.circular(100),
             child: BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 12.0, sigmaY: 12.0),
               child: AnimatedContainer(
-                duration: const Duration(milliseconds: 250),
+                duration: Duration(milliseconds: _animDuration.toInt()),
                 curve: Curves.easeOutCubic,
                 width: _bubbleSize,
                 height: _isExpanded ? _expandedHeight : _bubbleSize,

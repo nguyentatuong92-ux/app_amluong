@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 import 'package:app_links/app_links.dart';
 import 'dart:developer';
+import 'package:flutter/services.dart';
 
 // Import các màn hình của bạn
 import 'volume_bubble_overlay.dart';
@@ -10,6 +11,33 @@ import 'dashboard_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Thiết lập MethodChannel để lắng nghe từ Quick Settings Tile
+  const platform = MethodChannel('com.example.am_luong/tile');
+  platform.setMethodCallHandler((call) async {
+    if (call.method == "toggleBubble") {
+      final isActive = await FlutterOverlayWindow.isActive();
+      if (isActive) {
+        await FlutterOverlayWindow.closeOverlay();
+      } else {
+        if (await FlutterOverlayWindow.isPermissionGranted()) {
+          await FlutterOverlayWindow.showOverlay(
+            enableDrag: true,
+            flag: OverlayFlag.defaultFlag,
+            alignment: OverlayAlignment.centerRight,
+            height: 480,
+            width: 200,
+          );
+        }
+      }
+      // Sau khi toggle, yêu cầu native cập nhật lại UI nút gạt cho chuẩn
+      platform.invokeMethod("updateTileUI");
+      return true;
+    } else if (call.method == "checkStatus") {
+      return await FlutterOverlayWindow.isActive();
+    }
+    return null;
+  });
 
   // Xử lý deep link lúc mở app lần đầu
   try {
