@@ -207,7 +207,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                       ),
                       Text(
-                        "Nhà phát triển: Ng.Tá Tưởng",
+                        "Phát triển bởi: Ng.Tá Tưởng",
                         style: TextStyle(fontSize: 14, color: Colors.white60),
                       ),
                     ],
