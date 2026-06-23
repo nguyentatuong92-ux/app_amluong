@@ -11,6 +11,7 @@ import android.os.Build
 import android.content.Context
 import android.service.quicksettings.TileService
 import android.content.pm.PackageManager
+import android.os.PowerManager
 
 class MainActivity : FlutterActivity() {
     private val CHANNEL = "com.example.am_luong/tile"
@@ -65,6 +66,14 @@ class MainActivity : FlutterActivity() {
                     TileService.requestListeningState(this, ComponentName(this, VolumeTileService::class.java))
                 }
                 result.success(null)
+            } else if (call.method == "checkBatteryOptimization") {
+                val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+                val isIgnoring = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    powerManager.isIgnoringBatteryOptimizations(packageName)
+                } else {
+                    true
+                }
+                result.success(isIgnoring)
             } else {
                 result.notImplemented()
             }

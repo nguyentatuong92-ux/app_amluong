@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:ui';
 
 class DisplaySettingsWidget extends StatelessWidget {
   final double bubbleSize;
@@ -28,145 +29,172 @@ class DisplaySettingsWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1E293B),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            "Cài đặt hiển thị",
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 18,
-              color: Colors.white,
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(24),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                const Color(0xFF1E293B).withAlpha((0.2 * 255).toInt()),
+                const Color(0xFF0F172A).withAlpha((0.1 * 255).toInt()),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: Colors.white.withAlpha((0.1 * 255).toInt()),
+              width: 1,
             ),
           ),
-          const SizedBox(height: 16),
-
-          // Kích thước bong bóng
-          _buildSettingRow(
-            label: "Kích thước bong bóng:",
-            value: "${bubbleSize.toInt()} px",
-          ),
-          _buildSliderRow(
-            value: bubbleSize.clamp(40.0, 75.0),
-            min: 40.0,
-            max: 75.0,
-            onDecrement: () =>
-                onBubbleSizeChanged((bubbleSize - 1).clamp(40.0, 75.0)),
-            onIncrement: () =>
-                onBubbleSizeChanged((bubbleSize + 1).clamp(40.0, 75.0)),
-            onChanged: onBubbleSizeChanged,
-          ),
-
-          const Divider(color: Colors.white10, height: 10),
-
-          // Độ mờ khi không chạm
-          _buildSettingRow(
-            label: "Độ mờ khi không chạm:",
-            value: "${(inactiveOpacity * 100).toInt()}%",
-          ),
-          _buildSliderRow(
-            value: inactiveOpacity,
-            min: 0.1,
-            max: 1.0,
-            onDecrement: () => onInactiveOpacityChanged(
-              (inactiveOpacity - 0.05).clamp(0.1, 1.0),
-            ),
-            onIncrement: () => onInactiveOpacityChanged(
-              (inactiveOpacity + 0.05).clamp(0.1, 1.0),
-            ),
-            onChanged: onInactiveOpacityChanged,
-          ),
-
-          const Divider(color: Colors.white10, height: 10),
-
-          // Thời gian hiển thị
-          _buildSettingRow(
-            label: "Thời gian hiển thị:",
-            value: "${displayDuration.toInt()} giây",
-          ),
-          _buildSliderRow(
-            value: displayDuration,
-            min: 1.0,
-            max: 10.0,
-            divisions: 9,
-            onDecrement: () => onDisplayDurationChanged(
-              (displayDuration - 1).clamp(1.0, 10.0),
-            ),
-            onIncrement: () => onDisplayDurationChanged(
-              (displayDuration + 1).clamp(1.0, 10.0),
-            ),
-            onChanged: onDisplayDurationChanged,
-          ),
-
-          const Divider(color: Colors.white10, height: 10),
-
-          // Thời gian thu gọn
-          _buildSettingRow(
-            label: "Thời gian thu gọn (hiệu ứng):",
-            value: "${animDuration.toInt()} ms",
-          ),
-          _buildSliderRow(
-            value: animDuration,
-            min: 100.0,
-            max: 1000.0,
-            divisions: 18,
-            onDecrement: () =>
-                onAnimDurationChanged((animDuration - 50).clamp(100.0, 1000.0)),
-            onIncrement: () =>
-                onAnimDurationChanged((animDuration + 50).clamp(100.0, 1000.0)),
-            onChanged: onAnimDurationChanged,
-          ),
-
-          const SizedBox(height: 12),
-
-          Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: onResetToDefault,
-                  icon: const Icon(Icons.refresh, size: 18),
-                  label: const Text("Mặc định"),
-                  style: OutlinedButton.styleFrom(
-                    backgroundColor: const Color(0xFF38BDF8).withOpacity(0.15),
-                    foregroundColor: const Color(0xFF38BDF8),
-                    side: const BorderSide(color: Color(0xFF38BDF8), width: 1),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
+              const Text(
+                "Cài đặt hiển thị",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                  letterSpacing: 0.5,
+                  color: Colors.white,
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: onApply,
-                  icon: const Icon(Icons.check_circle_outline, size: 18),
-                  label: const Text("Áp dụng"),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF38BDF8).withOpacity(0.15),
-                    foregroundColor: const Color(0xFF38BDF8),
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      side: const BorderSide(
-                        color: Color(0xFF38BDF8),
-                        width: 1,
+              const SizedBox(height: 20),
+
+              // Kích thước bong bóng
+              _buildSettingRow(
+                label: "Kích thước bong bóng:",
+                value: "${bubbleSize.toInt()} px",
+              ),
+              _buildSliderRow(
+                value: bubbleSize.clamp(40.0, 75.0),
+                min: 40.0,
+                max: 75.0,
+                onDecrement: () =>
+                    onBubbleSizeChanged((bubbleSize - 1).clamp(40.0, 75.0)),
+                onIncrement: () =>
+                    onBubbleSizeChanged((bubbleSize + 1).clamp(40.0, 75.0)),
+                onChanged: onBubbleSizeChanged,
+              ),
+
+              const Divider(color: Colors.white10, height: 20),
+
+              // Độ mờ khi không chạm
+              _buildSettingRow(
+                label: "Độ mờ khi không chạm:",
+                value: "${(inactiveOpacity * 100).toInt()}%",
+              ),
+              _buildSliderRow(
+                value: inactiveOpacity,
+                min: 0.1,
+                max: 1.0,
+                onDecrement: () => onInactiveOpacityChanged(
+                  (inactiveOpacity - 0.05).clamp(0.1, 1.0),
+                ),
+                onIncrement: () => onInactiveOpacityChanged(
+                  (inactiveOpacity + 0.05).clamp(0.1, 1.0),
+                ),
+                onChanged: onInactiveOpacityChanged,
+              ),
+
+              const Divider(color: Colors.white10, height: 20),
+
+              // Thời gian hiển thị
+              _buildSettingRow(
+                label: "Thời gian hiển thị:",
+                value: "${displayDuration.toInt()} giây",
+              ),
+              _buildSliderRow(
+                value: displayDuration,
+                min: 1.0,
+                max: 10.0,
+                divisions: 9,
+                onDecrement: () => onDisplayDurationChanged(
+                  (displayDuration - 1).clamp(1.0, 10.0),
+                ),
+                onIncrement: () => onDisplayDurationChanged(
+                  (displayDuration + 1).clamp(1.0, 10.0),
+                ),
+                onChanged: onDisplayDurationChanged,
+              ),
+
+              const Divider(color: Colors.white10, height: 20),
+
+              // Thời gian thu gọn
+              _buildSettingRow(
+                label: "Thời gian thu gọn:",
+                value: "${animDuration.toInt()} ms",
+              ),
+              _buildSliderRow(
+                value: animDuration,
+                min: 100.0,
+                max: 1000.0,
+                divisions: 18,
+                onDecrement: () => onAnimDurationChanged(
+                  (animDuration - 50).clamp(100.0, 1000.0),
+                ),
+                onIncrement: () => onAnimDurationChanged(
+                  (animDuration + 50).clamp(100.0, 1000.0),
+                ),
+                onChanged: onAnimDurationChanged,
+              ),
+
+              const SizedBox(height: 20),
+
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: onResetToDefault,
+                      icon: const Icon(Icons.refresh, size: 18),
+                      label: const Text("Mặc định"),
+                      style: OutlinedButton.styleFrom(
+                        backgroundColor: const Color(
+                          0xFF38BDF8,
+                        ).withAlpha((0.1 * 255).toInt()),
+                        foregroundColor: const Color(0xFF38BDF8),
+                        side: const BorderSide(
+                          color: Color(0xFF38BDF8),
+                          width: 1,
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                     ),
                   ),
-                ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: onApply,
+                      icon: const Icon(Icons.check_circle_outline, size: 18),
+                      label: const Text("Áp dụng"),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(
+                          0xFF38BDF8,
+                        ).withAlpha((0.1 * 255).toInt()),
+                        foregroundColor: const Color(0xFF38BDF8),
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: const BorderSide(
+                            color: Color(0xFF38BDF8),
+                            width: 1,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-        ],
+        ),
       ),
     );
   }

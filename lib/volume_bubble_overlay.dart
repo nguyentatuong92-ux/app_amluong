@@ -12,6 +12,7 @@ import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 import 'package:android_intent_plus/android_intent.dart';
 import 'package:android_intent_plus/flag.dart';
 import 'dart:developer';
+import 'dart:convert';
 
 class VolumeBubbleOverlay extends StatefulWidget {
   const VolumeBubbleOverlay({super.key});
@@ -32,6 +33,8 @@ class _VolumeBubbleOverlayState extends State<VolumeBubbleOverlay> {
   double _displayDuration = 3.0; // Mặc định 3 giây
   double _animDuration = 300.0; // Mặc định 300ms
 
+  StreamSubscription? _previewListener;
+
   // Chiều cao tự động giãn ra bằng 2.6 lần kích thước bong bóng
   double get _expandedHeight => _bubbleSize * 2.6;
 
@@ -40,6 +43,31 @@ class _VolumeBubbleOverlayState extends State<VolumeBubbleOverlay> {
     super.initState();
     _fetchAndListenVolume();
     _loadSettings();
+    _listenToPreviewUpdates();
+  }
+
+  // [MỚI THÊM] Lắng nghe cập nhật từ ứng dụng chính để xem trước thời gian thực
+  void _listenToPreviewUpdates() {
+    _previewListener = FlutterOverlayWindow.overlayListener.listen((event) {
+      try {
+        final data = jsonDecode(event.toString());
+        if (data["type"] == "update_preview") {
+          if (mounted) {
+            setState(() {
+              _bubbleSize = data["bubbleSize"] ?? _bubbleSize;
+              _inactiveOpacity = data["inactiveOpacity"] ?? _inactiveOpacity;
+              _displayDuration = data["displayDuration"] ?? _displayDuration;
+              _animDuration = data["animDuration"] ?? _animDuration;
+              _isExpanded =
+                  false; // Khi chỉnh thì thu gọn lại để xem size chuẩn
+            });
+            _resetTimer(); // Hiện lên để người dùng thấy thay đổi
+          }
+        }
+      } catch (e) {
+        // Có thể là các event khác không phải JSON, bỏ qua
+      }
+    });
   }
 
   Future<void> _loadSettings() async {
@@ -134,6 +162,7 @@ class _VolumeBubbleOverlayState extends State<VolumeBubbleOverlay> {
   @override
   void dispose() {
     _collapseTimer?.cancel();
+    _previewListener?.cancel();
     FlutterVolumeController.removeListener();
     super.dispose();
   }
@@ -152,25 +181,31 @@ class _VolumeBubbleOverlayState extends State<VolumeBubbleOverlay> {
           child: ClipRRect(
             borderRadius: BorderRadius.circular(100),
             child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 12.0, sigmaY: 12.0),
+              filter: ImageFilter.blur(sigmaX: 22.0, sigmaY: 22.0),
               child: AnimatedContainer(
                 duration: Duration(milliseconds: _animDuration.toInt()),
                 curve: Curves.easeOutCubic,
                 width: _bubbleSize,
                 height: _isExpanded ? _expandedHeight : _bubbleSize,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0F172A).withAlpha((0.2 * 255).toInt()),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      const Color(0xFF1E293B).withAlpha((0.4 * 255).toInt()),
+                      const Color(0xFF0F172A).withAlpha((0.6 * 255).toInt()),
+                    ],
+                  ),
                   borderRadius: BorderRadius.circular(100),
                   border: Border.all(
-                    color: const Color(
-                      0xFF38BDF8,
-                    ).withAlpha((0.3 * 255).toInt()),
-                    width: 1.5,
+                    color: Colors.white.withAlpha((0.25 * 255).toInt()),
+                    width: 0.8,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withAlpha((0.15 * 255).toInt()),
-                      blurRadius: 8,
+                      color: Colors.black.withAlpha((0.4 * 255).toInt()),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
                     ),
                   ],
                 ),

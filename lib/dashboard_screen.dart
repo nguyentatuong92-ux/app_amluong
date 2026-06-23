@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'dart:ui';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 import 'package:flutter_volume_controller/flutter_volume_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -7,7 +8,9 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'update_helper.dart';
 import 'display_settings_widget.dart';
 import 'package:flutter/services.dart';
-import 'dart:io';
+import 'dart:convert';
+import 'package:android_intent_plus/android_intent.dart';
+import 'package:android_intent_plus/flag.dart';
 
 import 'dart:developer';
 
@@ -30,6 +33,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   // [MỚI THÊM] Biến lưu trạng thái nút gạt đã được thêm hay chưa
   bool _isTileAdded = false;
 
+  // [MỚI THÊM] Trạng thái tối ưu pin
+  bool _isBatteryOptimized = false;
+
   double _inactiveOpacity = 0.5;
   double _bubbleSize = 68.0;
 
@@ -48,6 +54,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _loadAppVersion();
     _autoCheckForUpdate();
     _listenToOverlayEvents();
+    _checkBatteryStatus();
 
     Timer.periodic(const Duration(seconds: 1), (timer) async {
       final active = await FlutterOverlayWindow.isActive();
@@ -106,6 +113,41 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
   }
 
+  // [MỚI THÊM] Kiểm tra trạng thái tối ưu pin
+  Future<void> _checkBatteryStatus() async {
+    const platform = MethodChannel('com.example.am_luong/tile');
+    try {
+      final bool isIgnoring = await platform.invokeMethod(
+        'checkBatteryOptimization',
+      );
+      if (mounted) {
+        setState(() {
+          _isBatteryOptimized = !isIgnoring;
+        });
+      }
+    } on PlatformException catch (e) {
+      log("Lỗi kiểm tra pin: ${e.message}");
+    }
+  }
+
+  // [MỚI THÊM] Mở cài đặt tối ưu pin
+  Future<void> _openBatterySettings() async {
+    final intent = AndroidIntent(
+      action: 'android.settings.IGNORE_BATTERY_OPTIMIZATION_SETTINGS',
+      flags: [Flag.FLAG_ACTIVITY_NEW_TASK],
+    );
+    try {
+      await intent.launch();
+    } catch (e) {
+      // Nếu không mở được trang cụ thể, mở trang cài đặt pin chung
+      final fallbackIntent = AndroidIntent(
+        action: 'android.settings.SETTINGS',
+        flags: [Flag.FLAG_ACTIVITY_NEW_TASK],
+      );
+      await fallbackIntent.launch();
+    }
+  }
+
   Future<void> _loadAppVersion() async {
     PackageInfo packageInfo = await PackageInfo.fromPlatform();
     if (mounted) {
@@ -159,6 +201,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
+  // [MỚI THÊM] Cập nhật giao diện bong bóng thời gian thực
+  void _updateOverlayPreview() {
+    final data = {
+      "type": "update_preview",
+      "bubbleSize": _bubbleSize,
+      "inactiveOpacity": _inactiveOpacity,
+      "displayDuration": _displayDuration,
+      "animDuration": _animDuration,
+    };
+    FlutterOverlayWindow.shareData(jsonEncode(data));
+  }
+
   @override
   void dispose() {
     FlutterVolumeController.removeListener();
@@ -175,6 +229,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
+              if (_isBatteryOptimized) ...[
+                _buildBatteryWarning(),
+                const SizedBox(height: 20),
+              ],
+
               const SizedBox(height: 10),
 
               Row(
@@ -268,248 +327,272 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
               const SizedBox(height: 24),
 
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: _isBubbleActive
-                      ? const Color(0x1F10B981)
-                      : const Color(0x1F475569),
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(
-                    color: _isBubbleActive
-                        ? const Color(0xFF10B981)
-                        : const Color(0xFF475569),
-                    width: 1,
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    Text(
-                      _isBubbleActive ? "ĐANG HOẠT ĐỘNG" : "ĐANG TẮT !",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+              ClipRRect(
+                borderRadius: BorderRadius.circular(24),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          _isBubbleActive
+                              ? const Color(
+                                  0xFF10B981,
+                                ).withAlpha((0.15 * 255).toInt())
+                              : const Color(
+                                  0xFF475569,
+                                ).withAlpha((0.15 * 255).toInt()),
+                          _isBubbleActive
+                              ? const Color(
+                                  0xFF059669,
+                                ).withAlpha((0.05 * 255).toInt())
+                              : const Color(
+                                  0xFF1E293B,
+                                ).withAlpha((0.05 * 255).toInt()),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(
                         color: _isBubbleActive
-                            ? const Color(0xFF34D399)
-                            : const Color(0xFFF87171),
+                            ? const Color(
+                                0xFF10B981,
+                              ).withAlpha((0.4 * 255).toInt())
+                            : const Color(
+                                0xFF475569,
+                              ).withAlpha((0.4 * 255).toInt()),
+                        width: 1.2,
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    ElevatedButton.icon(
-                      onPressed: () async {
-                        if (!await FlutterOverlayWindow.isPermissionGranted()) {
-                          if (await FlutterOverlayWindow.requestPermission() ==
-                              true) {
-                            setState(() {
-                              _isOverlayGranted = true;
-                            });
-                          }
-                          return;
-                        }
-                        if (_isBubbleActive) {
-                          await FlutterOverlayWindow.closeOverlay();
-                        } else {
-                          await FlutterOverlayWindow.showOverlay(
-                            enableDrag: true,
-                            flag: OverlayFlag.defaultFlag,
-                            alignment: OverlayAlignment.centerRight,
-                            height: 480,
-                            width: 200,
-                          );
-                        }
-
-                        final active = await FlutterOverlayWindow.isActive();
-                        setState(() {
-                          _isBubbleActive = active;
-                        });
-                      },
-                      icon: Icon(
-                        _isBubbleActive ? Icons.stop : Icons.play_arrow,
-                        color: Colors.white,
-                      ),
-                      label: Text(
-                        _isBubbleActive ? "Tắt Bong Bóng" : "Bật Bong Bóng",
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _isBubbleActive
-                            ? const Color(0xFFEF4444)
-                            : const Color(0xFF38BDF8),
-                        foregroundColor: Colors.white,
-                        minimumSize: const Size(double.infinity, 50),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withAlpha((0.1 * 255).toInt()),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
                         ),
-                      ),
+                      ],
                     ),
-                    const SizedBox(height: 16),
-                    const FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Text(
-                        "Thêm nút gạt vào thanh trạng thái",
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.white),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
+                    child: Column(
                       children: [
-                        // Nút THÊM
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: _isTileAdded
-                                ? null
-                                : () async {
-                                    const platform = MethodChannel(
-                                      'com.example.am_luong/tile',
-                                    );
-                                    try {
-                                      await platform.invokeMethod(
-                                        'requestAddTile',
-                                      );
-                                      Future.delayed(
-                                        const Duration(seconds: 2),
-                                        () async {
-                                          await _loadSettings();
-                                          if (_isTileAdded && mounted) {
-                                            ScaffoldMessenger.of(
-                                              context,
-                                            ).showSnackBar(
-                                              SnackBar(
-                                                backgroundColor: const Color(
-                                                  0xFF64B5F6,
-                                                ),
-                                                behavior:
-                                                    SnackBarBehavior.floating,
-                                                shape: RoundedRectangleBorder(
-                                                  borderRadius:
-                                                      BorderRadius.circular(
-                                                        15.0,
-                                                      ),
-                                                ),
-                                                content: const Text(
-                                                  "Bạn đã thêm nút gạt thành công !",
-                                                  style: TextStyle(
-                                                    fontSize: 20,
-                                                  ),
-                                                ),
-                                              ),
-                                            );
-                                          }
-                                        },
-                                      );
-                                    } on PlatformException catch (e) {
-                                      log("Lỗi thêm Tile: ${e.message}");
-                                    }
-                                  },
-                            icon: const Icon(Icons.add, size: 16),
-                            // ĐÃ SỬA: Bọc Text trong FittedBox để chống rớt dòng
-                            label: const FittedBox(
-                              fit: BoxFit.scaleDown,
-                              child: Text("Thêm nút", maxLines: 1),
-                            ),
-                            style: OutlinedButton.styleFrom(
-                              // ĐÃ SỬA: Giảm padding 2 bên (horizontal) xuống nhỏ hơn
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 4,
-                                vertical: 12,
+                        Text(
+                          _isBubbleActive ? "ĐANG HOẠT ĐỘNG" : "ĐANG TẮT !",
+                          style: TextStyle(
+                            fontSize: 18,
+                            letterSpacing: 1.2,
+                            fontWeight: FontWeight.bold,
+                            color: _isBubbleActive
+                                ? const Color(0xFF34D399)
+                                : const Color(0xFFF87171),
+                            shadows: [
+                              Shadow(
+                                color:
+                                    (_isBubbleActive
+                                            ? const Color(0xFF10B981)
+                                            : const Color(0xFFEF4444))
+                                        .withAlpha((0.5 * 255).toInt()),
+                                blurRadius: 12,
                               ),
-                              foregroundColor: const Color(0xFF38BDF8),
-                              disabledForegroundColor: Colors.white10,
-                              side: BorderSide(
-                                color: _isTileAdded
-                                    ? Colors.white10
-                                    : const Color(0xFF38BDF8),
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        ElevatedButton.icon(
+                          onPressed: () async {
+                            if (!await FlutterOverlayWindow.isPermissionGranted()) {
+                              if (await FlutterOverlayWindow.requestPermission() ==
+                                  true) {
+                                setState(() {
+                                  _isOverlayGranted = true;
+                                });
+                              }
+                              return;
+                            }
+                            if (_isBubbleActive) {
+                              await FlutterOverlayWindow.closeOverlay();
+                            } else {
+                              await FlutterOverlayWindow.showOverlay(
+                                enableDrag: true,
+                                flag: OverlayFlag.defaultFlag,
+                                alignment: OverlayAlignment.centerRight,
+                                height: 480,
+                                width: 200,
+                              );
+                            }
+
+                            final active =
+                                await FlutterOverlayWindow.isActive();
+                            setState(() {
+                              _isBubbleActive = active;
+                            });
+                          },
+                          icon: Icon(
+                            _isBubbleActive ? Icons.stop : Icons.play_arrow,
+                            color: Colors.white,
+                          ),
+                          label: Text(
+                            _isBubbleActive ? "Tắt Bong Bóng" : "Bật Bong Bóng",
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _isBubbleActive
+                                ? const Color(0xFFEF4444)
+                                : const Color(0xFF38BDF8),
+                            foregroundColor: Colors.white,
+                            minimumSize: const Size(double.infinity, 50),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
                             ),
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        // Nút HỦY
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: !_isTileAdded
-                                ? null
-                                : () async {
-                                    const platform = MethodChannel(
-                                      'com.example.am_luong/tile',
-                                    );
-                                    try {
-                                      await platform.invokeMethod('removeTile');
-                                      if (mounted) {
-                                        setState(() {
-                                          _isTileAdded = false;
-                                        });
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          SnackBar(
-                                            content: const Text(
-                                              "Bạn đã hủy thêm nút gạt vào cài đặt nhanh !",
-                                              style: TextStyle(fontSize: 20),
-                                            ),
-                                            backgroundColor: const Color(
-                                              0xFF64B5F6,
-                                            ),
-                                            behavior: SnackBarBehavior.floating,
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(15.0),
-                                            ),
-                                          ),
+                        const SizedBox(height: 20),
+                        const FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            "Thêm nút gạt vào thanh trạng thái",
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            // Nút THÊM
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: _isTileAdded
+                                    ? null
+                                    : () async {
+                                        const platform = MethodChannel(
+                                          'com.example.am_luong/tile',
                                         );
-                                      }
-                                    } on PlatformException catch (e) {
-                                      log("Lỗi khi gỡ Tile: ${e.message}");
-                                    }
-                                  },
-                            icon: const Icon(Icons.close, size: 16),
-                            // ĐÃ SỬA: Bọc Text trong FittedBox để chống rớt dòng
-                            label: const FittedBox(
-                              fit: BoxFit.scaleDown,
-                              child: Text("Hủy thêm", maxLines: 1),
+                                        try {
+                                          await platform.invokeMethod(
+                                            'requestAddTile',
+                                          );
+                                          Future.delayed(
+                                            const Duration(seconds: 2),
+                                            () async {
+                                              await _loadSettings();
+                                              if (_isTileAdded && mounted) {
+                                                ScaffoldMessenger.of(
+                                                  context,
+                                                ).showSnackBar(
+                                                  SnackBar(
+                                                    backgroundColor:
+                                                        const Color(0xFF64B5F6),
+                                                    behavior: SnackBarBehavior
+                                                        .floating,
+                                                    shape: RoundedRectangleBorder(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            15.0,
+                                                          ),
+                                                    ),
+                                                    content: const Text(
+                                                      "Bạn đã thêm nút gạt thành công !",
+                                                      style: TextStyle(
+                                                        fontSize: 20,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                );
+                                              }
+                                            },
+                                          );
+                                        } on PlatformException catch (e) {
+                                          log("Lỗi thêm Tile: ${e.message}");
+                                        }
+                                      },
+                                icon: const Icon(Icons.add, size: 16),
+                                label: const FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Text("Thêm nút", maxLines: 1),
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                    vertical: 12,
+                                  ),
+                                  foregroundColor: const Color(0xFF38BDF8),
+                                  disabledForegroundColor: Colors.white10,
+                                  side: BorderSide(
+                                    color: _isTileAdded
+                                        ? Colors.white10
+                                        : const Color(0xFF38BDF8),
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                              ),
                             ),
-                            style: OutlinedButton.styleFrom(
-                              // ĐÃ SỬA: Giảm padding 2 bên (horizontal) xuống nhỏ hơn
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 4,
-                                vertical: 12,
-                              ),
-                              foregroundColor: const Color(0xFFF87171),
-                              disabledForegroundColor: Colors.white10,
-                              side: BorderSide(
-                                color: !_isTileAdded
-                                    ? Colors.white10
-                                    : const Color(0xFFF87171),
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                            const SizedBox(width: 12),
+                            // Nút HỦY
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: !_isTileAdded
+                                    ? null
+                                    : () async {
+                                        const platform = MethodChannel(
+                                          'com.example.am_luong/tile',
+                                        );
+                                        try {
+                                          await platform.invokeMethod(
+                                            'removeTile',
+                                          );
+                                          await _loadSettings();
+                                        } on PlatformException catch (e) {
+                                          log("Lỗi khi gỡ Tile: ${e.message}");
+                                        }
+                                      },
+                                icon: const Icon(Icons.close, size: 16),
+                                label: const FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Text("Hủy thêm", maxLines: 1),
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                    vertical: 12,
+                                  ),
+                                  foregroundColor: const Color(0xFFF87171),
+                                  disabledForegroundColor: Colors.white10,
+                                  side: BorderSide(
+                                    color: !_isTileAdded
+                                        ? Colors.white10
+                                        : const Color(0xFFF87171),
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
                               ),
                             ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          _isTileAdded
+                              ? "✅ Đã thêm nút gạt vào cài đặt nhanh !"
+                              : "ℹ️ Vui lòng nhấn thêm nút gạt !",
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: _isTileAdded
+                                ? const Color(0xFF34D399)
+                                : Colors.white54,
+                            fontStyle: _isTileAdded
+                                ? FontStyle.normal
+                                : FontStyle.italic,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
-                    Text(
-                      _isTileAdded
-                          ? "✅ Đã thêm nút gạt vào cài đặt nhanh !"
-                          : "ℹ️ Vui lòng nhấn thêm nút gạt !",
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: _isTileAdded
-                            ? const Color(0xFF34D399)
-                            : Colors.white54,
-                        fontStyle: _isTileAdded
-                            ? FontStyle.normal
-                            : FontStyle.italic,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
 
@@ -521,20 +604,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 inactiveOpacity: _inactiveOpacity,
                 displayDuration: _displayDuration,
                 animDuration: _animDuration,
-                onBubbleSizeChanged: (val) => setState(() => _bubbleSize = val),
-                onInactiveOpacityChanged: (val) =>
-                    setState(() => _inactiveOpacity = val),
-                onDisplayDurationChanged: (val) =>
-                    setState(() => _displayDuration = val),
-                onAnimDurationChanged: (val) =>
-                    setState(() => _animDuration = val),
+                onBubbleSizeChanged: (val) {
+                  setState(() => _bubbleSize = val);
+                  _updateOverlayPreview();
+                },
+                onInactiveOpacityChanged: (val) {
+                  setState(() => _inactiveOpacity = val);
+                  _updateOverlayPreview();
+                },
+                onDisplayDurationChanged: (val) {
+                  setState(() => _displayDuration = val);
+                  _updateOverlayPreview();
+                },
+                onAnimDurationChanged: (val) {
+                  setState(() => _animDuration = val);
+                  _updateOverlayPreview();
+                },
                 onResetToDefault: () {
                   setState(() {
-                    _bubbleSize = 50.0;
+                    _bubbleSize = 68.0;
                     _inactiveOpacity = 0.5;
-                    _displayDuration = 5.0;
-                    _animDuration = 500.0;
+                    _displayDuration = 3.0;
+                    _animDuration = 300.0;
                   });
+                  _updateOverlayPreview();
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: const Text(
@@ -555,7 +648,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: const Text(
-                          "Đã lưu! Vui lòng TẮT và BẬT lại bong bóng để áp dụng.",
+                          "Đã lưu thành công!",
                           style: TextStyle(fontSize: 20),
                         ),
                         backgroundColor: const Color(0xFF64B5F6),
@@ -571,6 +664,66 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  // [MỚI THÊM] Widget cảnh báo tối ưu pin
+  Widget _buildBatteryWarning() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0x26F59E0B), // Màu vàng cảnh báo (opacity thấp)
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFF59E0B), width: 1),
+      ),
+      child: Column(
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: Color(0xFFF59E0B)),
+              SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  "Cảnh báo tối ưu pin",
+                  style: TextStyle(
+                    color: Color(0xFFF59E0B),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            "Hệ thống có thể tự động tắt bong bóng để tiết kiệm pin. Vui lòng chuyển ứng dụng sang chế độ 'Không hạn chế'.",
+            style: TextStyle(color: Colors.white70, fontSize: 13),
+          ),
+          const SizedBox(height: 12),
+          ElevatedButton(
+            onPressed: () async {
+              await _openBatterySettings();
+              // Sau khi quay lại, kiểm tra lại trạng thái
+              Future.delayed(const Duration(seconds: 2), () {
+                _checkBatteryStatus();
+              });
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFF59E0B),
+              foregroundColor: Colors.black,
+              minimumSize: const Size(double.infinity, 40),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text(
+              "Đi đến cài đặt",
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
       ),
     );
   }
