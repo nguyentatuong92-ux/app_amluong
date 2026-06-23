@@ -6,7 +6,9 @@ import 'package:flutter_volume_controller/flutter_volume_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'update_helper.dart';
-import 'display_settings_widget.dart';
+import 'settings_screen.dart';
+import 'custom_settings_widget.dart';
+import 'app_selector_screen.dart';
 import 'package:flutter/services.dart';
 import 'dart:convert';
 import 'package:android_intent_plus/android_intent.dart';
@@ -42,6 +44,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
   // [MỚI THÊM] Cài đặt thời gian
   double _displayDuration = 3.0; // Thời gian hiển thị (giây)
   double _animDuration = 300.0; // Thời gian hiệu ứng (mili giây)
+
+  bool _useBouncy = true;
+  bool _useScale = true;
+  bool _useFade = true;
+
+  String? _selectedAppName;
+  String? _selectedAppPackage;
 
   StreamSubscription? _overlayListener;
 
@@ -165,6 +174,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
       _isTileAdded = prefs.getBool('isTileAdded') ?? false;
       _displayDuration = prefs.getDouble('displayDuration') ?? 3.0;
       _animDuration = prefs.getDouble('animDuration') ?? 300.0;
+      _useBouncy = prefs.getBool('useBouncy') ?? true;
+      _useScale = prefs.getBool('useScale') ?? true;
+      _useFade = prefs.getBool('useFade') ?? true;
+      _selectedAppName = prefs.getString('selectedAppName');
+      _selectedAppPackage = prefs.getString('selectedAppPackage');
     });
   }
 
@@ -174,6 +188,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
     await prefs.setDouble('bubbleSize', _bubbleSize);
     await prefs.setDouble('displayDuration', _displayDuration);
     await prefs.setDouble('animDuration', _animDuration);
+    await prefs.setBool('useBouncy', _useBouncy);
+    await prefs.setBool('useScale', _useScale);
+    await prefs.setBool('useFade', _useFade);
+    if (_selectedAppName != null) {
+      await prefs.setString('selectedAppName', _selectedAppName!);
+    } else {
+      await prefs.remove('selectedAppName');
+    }
+    if (_selectedAppPackage != null) {
+      await prefs.setString('selectedAppPackage', _selectedAppPackage!);
+    } else {
+      await prefs.remove('selectedAppPackage');
+    }
   }
 
   Future<void> _checkPermissions() async {
@@ -209,6 +236,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       "inactiveOpacity": _inactiveOpacity,
       "displayDuration": _displayDuration,
       "animDuration": _animDuration,
+      "useBouncy": _useBouncy,
+      "useScale": _useScale,
+      "useFade": _useFade,
+      "selectedAppPackage": _selectedAppPackage,
     };
     FlutterOverlayWindow.shareData(jsonEncode(data));
   }
@@ -596,70 +627,180 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
               ),
 
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
 
-              // KHU VỰC CÀI ĐẶT
-              DisplaySettingsWidget(
-                bubbleSize: _bubbleSize,
-                inactiveOpacity: _inactiveOpacity,
-                displayDuration: _displayDuration,
-                animDuration: _animDuration,
-                onBubbleSizeChanged: (val) {
-                  setState(() => _bubbleSize = val);
-                  _updateOverlayPreview();
-                },
-                onInactiveOpacityChanged: (val) {
-                  setState(() => _inactiveOpacity = val);
-                  _updateOverlayPreview();
-                },
-                onDisplayDurationChanged: (val) {
-                  setState(() => _displayDuration = val);
-                  _updateOverlayPreview();
-                },
-                onAnimDurationChanged: (val) {
-                  setState(() => _animDuration = val);
-                  _updateOverlayPreview();
-                },
-                onResetToDefault: () {
-                  setState(() {
-                    _bubbleSize = 68.0;
-                    _inactiveOpacity = 0.5;
-                    _displayDuration = 3.0;
-                    _animDuration = 300.0;
-                  });
-                  _updateOverlayPreview();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: const Text(
-                        "Đã đặt về thông số mặc định!",
-                        style: TextStyle(fontSize: 20),
-                      ),
-                      backgroundColor: const Color(0xFF64B5F6),
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(15.0),
-                      ),
+              CustomSettingsWidget(
+                selectedAppName: _selectedAppName,
+                selectedAppPackage: _selectedAppPackage,
+                onSelectApp: () async {
+                  final result = await Navigator.push(
+                    context,
+                    PageRouteBuilder(
+                      pageBuilder: (context, animation, secondaryAnimation) =>
+                          const AppSelectorScreen(),
+                      transitionsBuilder:
+                          (context, animation, secondaryAnimation, child) {
+                            return FadeTransition(
+                              opacity: animation,
+                              child: child,
+                            );
+                          },
+                      transitionDuration: const Duration(milliseconds: 300),
                     ),
                   );
-                },
-                onApply: () async {
-                  await _saveSettings();
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: const Text(
-                          "Đã lưu thành công!",
-                          style: TextStyle(fontSize: 20),
+                  if (result != null && result is Map) {
+                    setState(() {
+                      _selectedAppName = result['name'];
+                      _selectedAppPackage = result['packageName'];
+                    });
+                    await _saveSettings();
+                    _updateOverlayPreview();
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: const Text("Đã cập nhật ứng dụng nhấn giữ"),
+                          backgroundColor: const Color(0xFF64B5F6),
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(15.0),
+                          ),
                         ),
-                        backgroundColor: const Color(0xFF64B5F6),
-                        behavior: SnackBarBehavior.floating,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15.0),
-                        ),
-                      ),
-                    );
+                      );
+                    }
                   }
                 },
+                onReset: () async {
+                  setState(() {
+                    _selectedAppName = null;
+                    _selectedAppPackage = null;
+                  });
+                  await _saveSettings();
+                  _updateOverlayPreview();
+                },
+              ),
+
+              const SizedBox(height: 24),
+
+              // NÚT CHUYỂN SANG TRANG CÀI ĐẶT
+              ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white.withAlpha((0.05 * 255).toInt()),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: Colors.white.withAlpha((0.1 * 255).toInt()),
+                      ),
+                    ),
+                    child: ListTile(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          PageRouteBuilder(
+                            pageBuilder:
+                                (context, animation, secondaryAnimation) =>
+                                    SettingsScreen(
+                                      bubbleSize: _bubbleSize,
+                                      inactiveOpacity: _inactiveOpacity,
+                                      displayDuration: _displayDuration,
+                                      animDuration: _animDuration,
+                                      useBouncy: _useBouncy,
+                                      useScale: _useScale,
+                                      useFade: _useFade,
+                                      onBubbleSizeChanged: (val) {
+                                        setState(() => _bubbleSize = val);
+                                        _updateOverlayPreview();
+                                      },
+                                      onInactiveOpacityChanged: (val) {
+                                        setState(() => _inactiveOpacity = val);
+                                        _updateOverlayPreview();
+                                      },
+                                      onDisplayDurationChanged: (val) {
+                                        setState(() => _displayDuration = val);
+                                        _updateOverlayPreview();
+                                      },
+                                      onAnimDurationChanged: (val) {
+                                        setState(() => _animDuration = val);
+                                        _updateOverlayPreview();
+                                      },
+                                      onBouncyChanged: (val) {
+                                        setState(() => _useBouncy = val);
+                                        _updateOverlayPreview();
+                                      },
+                                      onScaleChanged: (val) {
+                                        setState(() => _useScale = val);
+                                        _updateOverlayPreview();
+                                      },
+                                      onFadeChanged: (val) {
+                                        setState(() => _useFade = val);
+                                        _updateOverlayPreview();
+                                      },
+                                      onResetToDefault: () {
+                                        setState(() {
+                                          _bubbleSize = 68.0;
+                                          _inactiveOpacity = 0.5;
+                                          _displayDuration = 3.0;
+                                          _animDuration = 300.0;
+                                          _useBouncy = false;
+                                          _useScale = false;
+                                          _useFade = false;
+                                        });
+                                        _updateOverlayPreview();
+                                      },
+                                      onApply: _saveSettings,
+                                    ),
+                            transitionsBuilder:
+                                (
+                                  context,
+                                  animation,
+                                  secondaryAnimation,
+                                  child,
+                                ) {
+                                  return FadeTransition(
+                                    opacity: animation,
+                                    child: child,
+                                  );
+                                },
+                            transitionDuration: const Duration(
+                              milliseconds: 300,
+                            ),
+                          ),
+                        );
+                      },
+                      leading: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(
+                            0xFF38BDF8,
+                          ).withAlpha((0.2 * 255).toInt()),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.settings_suggest_rounded,
+                          color: Color(0xFF38BDF8),
+                        ),
+                      ),
+                      title: const Text(
+                        "Cài đặt hiển thị",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      subtitle: const Text(
+                        "Kích thước, độ mờ, thời gian...",
+                        style: TextStyle(color: Colors.white54, fontSize: 12),
+                      ),
+                      trailing: const Icon(
+                        Icons.arrow_forward_ios,
+                        color: Colors.white24,
+                        size: 16,
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ],
           ),

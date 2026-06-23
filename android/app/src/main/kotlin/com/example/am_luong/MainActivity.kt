@@ -12,6 +12,12 @@ import android.content.Context
 import android.service.quicksettings.TileService
 import android.content.pm.PackageManager
 import android.os.PowerManager
+import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.drawable.Drawable
+import java.io.ByteArrayOutputStream
+
 
 class MainActivity : FlutterActivity() {
     private val CHANNEL = "com.example.am_luong/tile"
@@ -74,9 +80,48 @@ class MainActivity : FlutterActivity() {
                     true
                 }
                 result.success(isIgnoring)
+            } else if (call.method == "getInstalledApps") {
+                val pm = packageManager
+                val intent = Intent(Intent.ACTION_MAIN, null)
+                intent.addCategory(Intent.CATEGORY_LAUNCHER)
+                val apps = pm.queryIntentActivities(intent, 0)
+                val appList = mutableListOf<Map<String, Any>>()
+
+                for (app in apps) {
+                    val appInfo = mutableMapOf<String, Any>()
+                    appInfo["name"] = app.loadLabel(pm).toString()
+                    appInfo["packageName"] = app.activityInfo.packageName
+                    
+                    // Lấy icon
+                    try {
+                        val icon = app.loadIcon(pm)
+                        val bitmap = drawableToBitmap(icon)
+                        val stream = ByteArrayOutputStream()
+                        bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
+                        appInfo["icon"] = stream.toByteArray()
+                    } catch (e: Exception) {
+                        // Bỏ qua icon nếu lỗi
+                    }
+                    
+                    appList.add(appInfo)
+                }
+                result.success(appList)
             } else {
                 result.notImplemented()
             }
         }
+    }
+
+    private fun drawableToBitmap(drawable: Drawable): Bitmap {
+        var width = drawable.intrinsicWidth
+        var height = drawable.intrinsicHeight
+        if (width <= 0) width = 100
+        if (height <= 0) height = 100
+        
+        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        drawable.setBounds(0, 0, canvas.width, canvas.height)
+        drawable.draw(canvas)
+        return bitmap
     }
 }

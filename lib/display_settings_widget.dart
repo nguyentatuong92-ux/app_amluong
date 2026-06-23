@@ -6,10 +6,16 @@ class DisplaySettingsWidget extends StatelessWidget {
   final double inactiveOpacity;
   final double displayDuration;
   final double animDuration;
+  final bool useBouncy;
+  final bool useScale;
+  final bool useFade;
   final Function(double) onBubbleSizeChanged;
   final Function(double) onInactiveOpacityChanged;
   final Function(double) onDisplayDurationChanged;
   final Function(double) onAnimDurationChanged;
+  final Function(bool) onBouncyChanged;
+  final Function(bool) onScaleChanged;
+  final Function(bool) onFadeChanged;
   final VoidCallback onApply;
   final VoidCallback onResetToDefault;
 
@@ -19,10 +25,16 @@ class DisplaySettingsWidget extends StatelessWidget {
     required this.inactiveOpacity,
     required this.displayDuration,
     required this.animDuration,
+    required this.useBouncy,
+    required this.useScale,
+    required this.useFade,
     required this.onBubbleSizeChanged,
     required this.onInactiveOpacityChanged,
     required this.onDisplayDurationChanged,
     required this.onAnimDurationChanged,
+    required this.onBouncyChanged,
+    required this.onScaleChanged,
+    required this.onFadeChanged,
     required this.onApply,
     required this.onResetToDefault,
   });
@@ -142,6 +154,34 @@ class DisplaySettingsWidget extends StatelessWidget {
                 onChanged: onAnimDurationChanged,
               ),
 
+              const Divider(color: Colors.white10, height: 30),
+
+              const Text(
+                "Hiệu ứng chuyển cảnh",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              _buildSwitchRow(
+                label: "Hiệu ứng nảy (Bouncy):",
+                value: useBouncy,
+                onChanged: onBouncyChanged,
+              ),
+              _buildSwitchRow(
+                label: "Hiệu ứng phóng to (Scale):",
+                value: useScale,
+                onChanged: onScaleChanged,
+              ),
+              _buildSwitchRow(
+                label: "Chuyển cảnh mượt (Fade):",
+                value: useFade,
+                onChanged: onFadeChanged,
+              ),
+
               const SizedBox(height: 20),
 
               Row(
@@ -252,6 +292,33 @@ class DisplaySettingsWidget extends StatelessWidget {
           icon: const Icon(Icons.add_circle_outline, color: Colors.white54),
         ),
       ],
+    );
+  }
+
+  Widget _buildSwitchRow({
+    required String label,
+    required bool value,
+    required Function(bool) onChanged,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(fontSize: 14, color: Colors.white70),
+          ),
+          Switch(
+            value: value,
+            onChanged: onChanged,
+            activeColor: const Color(0xFF38BDF8),
+            activeTrackColor: const Color(0xFF38BDF8).withOpacity(0.3),
+            inactiveThumbColor: Colors.white24,
+            inactiveTrackColor: Colors.white12,
+          ),
+        ],
+      ),
     );
   }
 }

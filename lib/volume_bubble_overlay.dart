@@ -32,6 +32,10 @@ class _VolumeBubbleOverlayState extends State<VolumeBubbleOverlay> {
   double _bubbleSize = 68.0;
   double _displayDuration = 3.0; // Mặc định 3 giây
   double _animDuration = 300.0; // Mặc định 300ms
+  bool _useBouncy = true;
+  bool _useScale = true;
+  bool _useFade = true;
+  String? _selectedAppPackage;
 
   StreamSubscription? _previewListener;
 
@@ -58,6 +62,10 @@ class _VolumeBubbleOverlayState extends State<VolumeBubbleOverlay> {
               _inactiveOpacity = data["inactiveOpacity"] ?? _inactiveOpacity;
               _displayDuration = data["displayDuration"] ?? _displayDuration;
               _animDuration = data["animDuration"] ?? _animDuration;
+              _useBouncy = data["useBouncy"] ?? _useBouncy;
+              _useScale = data["useScale"] ?? _useScale;
+              _useFade = data["useFade"] ?? _useFade;
+              _selectedAppPackage = data["selectedAppPackage"];
               _isExpanded =
                   false; // Khi chỉnh thì thu gọn lại để xem size chuẩn
             });
@@ -82,6 +90,10 @@ class _VolumeBubbleOverlayState extends State<VolumeBubbleOverlay> {
         _bubbleSize = prefs.getDouble('bubbleSize') ?? 68.0;
         _displayDuration = prefs.getDouble('displayDuration') ?? 3.0;
         _animDuration = prefs.getDouble('animDuration') ?? 300.0;
+        _useBouncy = prefs.getBool('useBouncy') ?? true;
+        _useScale = prefs.getBool('useScale') ?? true;
+        _useFade = prefs.getBool('useFade') ?? true;
+        _selectedAppPackage = prefs.getString('selectedAppPackage');
       });
     }
   }
@@ -174,44 +186,73 @@ class _VolumeBubbleOverlayState extends State<VolumeBubbleOverlay> {
     return Material(
       color: Colors.transparent,
       elevation: 0,
-      child: AnimatedOpacity(
-        opacity: _isExpanded ? 1.0 : _inactiveOpacity,
-        duration: Duration(milliseconds: _animDuration.toInt() * 2),
-        child: Center(
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(100),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 22.0, sigmaY: 22.0),
-              child: AnimatedContainer(
-                duration: Duration(milliseconds: _animDuration.toInt()),
-                curve: Curves.easeOutCubic,
-                width: _bubbleSize,
-                height: _isExpanded ? _expandedHeight : _bubbleSize,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      const Color(0xFF1E293B).withAlpha((0.4 * 255).toInt()),
-                      const Color(0xFF0F172A).withAlpha((0.6 * 255).toInt()),
+      child: AnimatedScale(
+        scale: (_isExpanded && _useScale) ? 1.05 : 1.0,
+        duration: Duration(milliseconds: _animDuration.toInt()),
+        curve: _useBouncy ? Curves.elasticOut : Curves.easeOutCubic,
+        child: AnimatedOpacity(
+          opacity: _isExpanded ? 1.0 : _inactiveOpacity,
+          duration: Duration(milliseconds: _animDuration.toInt() * 2),
+          child: Center(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(100),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 22.0, sigmaY: 22.0),
+                child: AnimatedContainer(
+                  duration: Duration(milliseconds: _animDuration.toInt()),
+                  curve: _useBouncy ? Curves.elasticOut : Curves.easeOutCubic,
+                  width: _bubbleSize,
+                  height: _isExpanded ? _expandedHeight : _bubbleSize,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        const Color(0xFF1E293B).withAlpha((0.4 * 255).toInt()),
+                        const Color(0xFF0F172A).withAlpha((0.6 * 255).toInt()),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(100),
+                    border: Border.all(
+                      color: Colors.white.withAlpha((0.25 * 255).toInt()),
+                      width: 0.8,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withAlpha((0.4 * 255).toInt()),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
                     ],
                   ),
-                  borderRadius: BorderRadius.circular(100),
-                  border: Border.all(
-                    color: Colors.white.withAlpha((0.25 * 255).toInt()),
-                    width: 0.8,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withAlpha((0.4 * 255).toInt()),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
+                  child: _useFade
+                      ? AnimatedSwitcher(
+                          duration: Duration(
+                            milliseconds: (_animDuration * 0.8).toInt(),
+                          ),
+                          transitionBuilder:
+                              (Widget child, Animation<double> animation) {
+                                return FadeTransition(
+                                  opacity: animation,
+                                  child: ScaleTransition(
+                                    scale: animation,
+                                    child: child,
+                                  ),
+                                );
+                              },
+                          child: _isExpanded
+                              ? _buildExpandedToolbar(
+                                  key: const ValueKey('expanded'),
+                                )
+                              : _buildCollapsedCircularBubble(
+                                  volPercentage,
+                                  key: const ValueKey('collapsed'),
+                                ),
+                        )
+                      : (_isExpanded
+                            ? _buildExpandedToolbar()
+                            : _buildCollapsedCircularBubble(volPercentage)),
                 ),
-                child: _isExpanded
-                    ? _buildExpandedToolbar()
-                    : _buildCollapsedCircularBubble(volPercentage),
               ),
             ),
           ),
@@ -220,8 +261,9 @@ class _VolumeBubbleOverlayState extends State<VolumeBubbleOverlay> {
     );
   }
 
-  Widget _buildCollapsedCircularBubble(int volPercentage) {
+  Widget _buildCollapsedCircularBubble(int volPercentage, {Key? key}) {
     return GestureDetector(
+      key: key,
       onTap: () {
         setState(() {
           _isExpanded = true;
@@ -233,6 +275,23 @@ class _VolumeBubbleOverlayState extends State<VolumeBubbleOverlay> {
       // [MỚI SỬA] Nhấn giữ sẽ mở trình phát nhạc mặc định của hệ thống
       onLongPress: () async {
         HapticFeedback.heavyImpact();
+
+        if (_selectedAppPackage != null) {
+          log("Đang mở ứng dụng tùy chỉnh: $_selectedAppPackage");
+          try {
+            final intent = AndroidIntent(
+              action: 'android.intent.action.MAIN',
+              category: 'android.intent.category.LAUNCHER',
+              package: _selectedAppPackage,
+              flags: [Flag.FLAG_ACTIVITY_NEW_TASK],
+            );
+            await intent.launch();
+            return;
+          } catch (e) {
+            log("Lỗi mở app tùy chỉnh: $e");
+          }
+        }
+
         log("Đang mở trình phát nhạc...");
 
         bool success = false;
@@ -354,10 +413,11 @@ class _VolumeBubbleOverlayState extends State<VolumeBubbleOverlay> {
     );
   }
 
-  Widget _buildExpandedToolbar() {
+  Widget _buildExpandedToolbar({Key? key}) {
     int volPercentage = (_volumeValue * 100).toInt();
 
     return Column(
+      key: key,
       children: [
         Expanded(
           child: GestureDetector(
