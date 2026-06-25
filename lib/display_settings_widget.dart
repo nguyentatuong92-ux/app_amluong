@@ -303,11 +303,12 @@ class DisplaySettingsWidget extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: const TextStyle(fontSize: 14, color: Colors.white70),
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 14, color: Colors.white70),
+            ),
           ),
           Switch(
             value: value,
