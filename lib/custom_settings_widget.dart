@@ -53,6 +53,8 @@ class CustomSettingsWidget extends StatelessWidget {
               const SizedBox(height: 20),
               const Text(
                 "Hành động nhấn giữ bong bóng:",
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(fontSize: 15, color: Colors.white70),
               ),
               const SizedBox(height: 12),
@@ -60,7 +62,10 @@ class CustomSettingsWidget extends StatelessWidget {
                 onTap: onSelectApp,
                 borderRadius: BorderRadius.circular(12),
                 child: Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white.withAlpha((0.05 * 255).toInt()),
                     borderRadius: BorderRadius.circular(12),
@@ -88,24 +93,31 @@ class CustomSettingsWidget extends StatelessWidget {
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
                               selectedAppName ?? "Trình phát nhạc hệ thống",
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold,
+                                fontSize: 14,
                               ),
                             ),
                             Text(
                               selectedAppPackage ?? "Mặc định",
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
                                 color: Colors.white38,
-                                fontSize: 12,
+                                fontSize: 11,
                               ),
                             ),
                           ],
                         ),
                       ),
+                      const SizedBox(width: 8),
                       const Icon(Icons.edit, color: Colors.white24, size: 18),
                     ],
                   ),
