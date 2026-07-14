@@ -9,6 +9,7 @@ import 'update_helper.dart';
 import 'settings_screen.dart';
 import 'custom_settings_widget.dart';
 import 'app_selector_screen.dart';
+import 'usage_suggestions_screen.dart';
 import 'package:flutter/services.dart';
 import 'dart:convert';
 import 'package:android_intent_plus/android_intent.dart';
@@ -791,6 +792,81 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                       subtitle: const Text(
                         "Kích thước, độ mờ, thời gian...",
+                        style: TextStyle(color: Colors.white54, fontSize: 12),
+                      ),
+                      trailing: const Icon(
+                        Icons.arrow_forward_ios,
+                        color: Colors.white24,
+                        size: 16,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // NÚT CHUYỂN SANG TRANG GỢI Ý SỬ DỤNG
+              ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white.withAlpha((0.05 * 255).toInt()),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: Colors.white.withAlpha((0.1 * 255).toInt()),
+                      ),
+                    ),
+                    child: ListTile(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          PageRouteBuilder(
+                            pageBuilder:
+                                (context, animation, secondaryAnimation) =>
+                                    const UsageSuggestionsScreen(),
+                            transitionsBuilder:
+                                (
+                                  context,
+                                  animation,
+                                  secondaryAnimation,
+                                  child,
+                                ) {
+                                  return FadeTransition(
+                                    opacity: animation,
+                                    child: child,
+                                  );
+                                },
+                            transitionDuration: const Duration(
+                              milliseconds: 300,
+                            ),
+                          ),
+                        );
+                      },
+                      leading: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(
+                            0xFF10B981,
+                          ).withAlpha((0.2 * 255).toInt()),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.lightbulb_outline,
+                          color: Color(0xFF10B981),
+                        ),
+                      ),
+                      title: const Text(
+                        "Gợi ý sử dụng",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      subtitle: const Text(
+                        "Hướng dẫn thao tác và mẹo hay...",
                         style: TextStyle(color: Colors.white54, fontSize: 12),
                       ),
                       trailing: const Icon(
