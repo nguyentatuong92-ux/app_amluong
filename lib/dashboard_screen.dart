@@ -632,7 +632,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         Text(
                           _isTileAdded
                               ? "✅ Đã thêm nút gạt vào cài đặt nhanh !"
-                              : "ℹ️ Vui lòng nhấn thêm nút gạt !",
+                              : "ℹ️ Vui lòng nhấn thêm nút gạt",
                           style: TextStyle(
                             fontSize: 13,
                             color: _isTileAdded
