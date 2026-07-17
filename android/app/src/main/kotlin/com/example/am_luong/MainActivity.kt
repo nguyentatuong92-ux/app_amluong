@@ -42,10 +42,6 @@ class MainActivity : FlutterActivity() {
                     PackageManager.DONT_KILL_APP
                 )
 
-                // [CẬP NHẬT] Lưu trạng thái vào SharedPreferences ngay khi gửi yêu cầu
-                val prefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
-                prefs.edit().putBoolean("flutter.isTileAdded", true).commit()
-
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     val statusBarManager = getSystemService(Context.STATUS_BAR_SERVICE) as StatusBarManager
                     statusBarManager.requestAddTileService(
@@ -53,11 +49,25 @@ class MainActivity : FlutterActivity() {
                         "Volume Bubble",
                         Icon.createWithResource(this, R.mipmap.ic_launcher),
                         { it.run() },
-                        {}
+                        { resultExtra: Int ->
+                            // 0: TILE_ADD_REQUEST_RESULT_TILE_NOT_ADDED
+                            // 1: TILE_ADD_REQUEST_RESULT_TILE_ADDED
+                            // 2: TILE_ADD_REQUEST_RESULT_TILE_ALREADY_ADDED
+                            
+                            val prefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+                            if (resultExtra == 1 || resultExtra == 2) {
+                                prefs.edit().putBoolean("flutter.isTileAdded", true).commit()
+                                this@MainActivity.runOnUiThread { result.success(true) }
+                            } else {
+                                prefs.edit().putBoolean("flutter.isTileAdded", false).commit()
+                                this@MainActivity.runOnUiThread { result.success(false) }
+                            }
+                        }
                     )
-                    result.success(null)
                 } else {
-                    result.error("UNSUPPORTED", "Yêu cầu thêm Tile chỉ hỗ trợ từ Android 13 trở lên", null)
+                    val prefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+                    prefs.edit().putBoolean("flutter.isTileAdded", true).commit()
+                    result.success(true)
                 }
             } else if (call.method == "removeTile") {
                 // VÔ HIỆU HÓA Component để hệ thống tự xóa Tile khỏi thanh trạng thái

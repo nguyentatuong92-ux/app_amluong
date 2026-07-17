@@ -556,10 +556,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
                                   try {
                                     if (value) {
-                                      await platform.invokeMethod(
-                                        'requestAddTile',
-                                      );
-                                      if (mounted) {
+                                      final bool? success = await platform
+                                          .invokeMethod<bool>('requestAddTile');
+                                      if (mounted && (success ?? false)) {
                                         ScaffoldMessenger.of(
                                           context,
                                         ).showSnackBar(
@@ -581,6 +580,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                             ),
                                           ),
                                         );
+                                      } else if (mounted) {
+                                        // Nếu user từ chối hoặc lỗi, trả lại trạng thái cũ
+                                        setState(() {
+                                          _isTileAdded = false;
+                                        });
                                       }
                                     } else {
                                       await platform.invokeMethod('removeTile');
