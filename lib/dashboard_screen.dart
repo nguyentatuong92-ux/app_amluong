@@ -54,6 +54,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   String? _selectedAppPackage;
 
   StreamSubscription? _overlayListener;
+  Timer? _statusTimer;
 
   @override
   void initState() {
@@ -65,8 +66,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _autoCheckForUpdate();
     _listenToOverlayEvents();
     _checkBatteryStatus();
+    _requestNotificationPermission();
 
-    Timer.periodic(const Duration(seconds: 1), (timer) async {
+    _statusTimer = Timer.periodic(const Duration(seconds: 1), (timer) async {
       final active = await FlutterOverlayWindow.isActive();
       final granted = await FlutterOverlayWindow.isPermissionGranted();
       if (mounted) {
@@ -76,6 +78,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
         });
       }
     });
+  }
+
+  Future<void> _requestNotificationPermission() async {
+    const platform = MethodChannel('com.example.am_luong/tile');
+    try {
+      await platform.invokeMethod('requestNotificationPermission');
+    } on PlatformException catch (e) {
+      log("Lỗi yêu cầu quyền thông báo: ${e.message}");
+    }
   }
 
   void _autoCheckForUpdate() {
@@ -169,6 +180,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
+    await prefs.reload(); // Làm mới dữ liệu từ đĩa
     setState(() {
       _inactiveOpacity = prefs.getDouble('inactiveOpacity') ?? 0.5;
       _bubbleSize = prefs.getDouble('bubbleSize') ?? 68.0;
@@ -249,6 +261,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void dispose() {
     FlutterVolumeController.removeListener();
     _overlayListener?.cancel();
+    _statusTimer?.cancel();
     super.dispose();
   }
 
@@ -450,6 +463,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 alignment: OverlayAlignment.centerRight,
                                 height: 480,
                                 width: 200,
+                                overlayTitle: "Volume Bubble đang chạy",
+                                overlayContent:
+                                    "Nhấn để điều chỉnh âm lượng nhanh",
                               );
                             }
 
@@ -491,121 +507,122 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           ),
                         ),
                         const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            // Nút THÊM
-                            Expanded(
-                              child: OutlinedButton.icon(
-                                onPressed: _isTileAdded
-                                    ? null
-                                    : () async {
-                                        const platform = MethodChannel(
-                                          'com.example.am_luong/tile',
-                                        );
-                                        try {
-                                          await platform.invokeMethod(
-                                            'requestAddTile',
-                                          );
-                                          Future.delayed(
-                                            const Duration(seconds: 2),
-                                            () async {
-                                              await _loadSettings();
-                                              if (_isTileAdded && mounted) {
-                                                ScaffoldMessenger.of(
-                                                  context,
-                                                ).showSnackBar(
-                                                  SnackBar(
-                                                    backgroundColor:
-                                                        const Color(0xFF64B5F6),
-                                                    behavior: SnackBarBehavior
-                                                        .floating,
-                                                    shape: RoundedRectangleBorder(
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                            15.0,
-                                                          ),
-                                                    ),
-                                                    content: const Text(
-                                                      "Bạn đã thêm nút gạt thành công !",
-                                                      style: TextStyle(
-                                                        fontSize: 20,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                );
-                                              }
-                                            },
-                                          );
-                                        } on PlatformException catch (e) {
-                                          log("Lỗi thêm Tile: ${e.message}");
-                                        }
-                                      },
-                                icon: const Icon(Icons.add, size: 16),
-                                label: const FittedBox(
-                                  fit: BoxFit.scaleDown,
-                                  child: Text("Thêm nút", maxLines: 1),
-                                ),
-                                style: OutlinedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 4,
-                                    vertical: 12,
-                                  ),
-                                  foregroundColor: const Color(0xFF38BDF8),
-                                  disabledForegroundColor: Colors.white10,
-                                  side: BorderSide(
-                                    color: _isTileAdded
-                                        ? Colors.white10
-                                        : const Color(0xFF38BDF8),
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
+                        // THAY THẾ 2 NÚT BẰNG 1 NÚT GẠT (SWITCH)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withAlpha((0.05 * 255).toInt()),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: Colors.white.withAlpha(
+                                (0.1 * 255).toInt(),
                               ),
                             ),
-                            const SizedBox(width: 12),
-                            // Nút HỦY
-                            Expanded(
-                              child: OutlinedButton.icon(
-                                onPressed: !_isTileAdded
-                                    ? null
-                                    : () async {
-                                        const platform = MethodChannel(
-                                          'com.example.am_luong/tile',
-                                        );
-                                        try {
-                                          await platform.invokeMethod(
-                                            'removeTile',
-                                          );
-                                          await _loadSettings();
-                                        } on PlatformException catch (e) {
-                                          log("Lỗi khi gỡ Tile: ${e.message}");
-                                        }
-                                      },
-                                icon: const Icon(Icons.close, size: 16),
-                                label: const FittedBox(
-                                  fit: BoxFit.scaleDown,
-                                  child: Text("Hủy thêm", maxLines: 1),
-                                ),
-                                style: OutlinedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 4,
-                                    vertical: 12,
-                                  ),
-                                  foregroundColor: const Color(0xFFF87171),
-                                  disabledForegroundColor: Colors.white10,
-                                  side: BorderSide(
-                                    color: !_isTileAdded
-                                        ? Colors.white10
-                                        : const Color(0xFFF87171),
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                _isTileAdded
+                                    ? "Đã bật nút gạt"
+                                    : "Đã tắt nút gạt",
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
-                            ),
-                          ],
+                              Switch(
+                                value: _isTileAdded,
+                                activeColor: const Color(0xFF34D399),
+                                activeTrackColor: const Color(
+                                  0xFF10B981,
+                                ).withAlpha((0.3 * 255).toInt()),
+                                inactiveThumbColor: Colors.white60,
+                                inactiveTrackColor: Colors.white10,
+                                onChanged: (bool value) async {
+                                  const platform = MethodChannel(
+                                    'com.example.am_luong/tile',
+                                  );
+
+                                  // Lưu trạng thái cũ để rollback nếu lỗi
+                                  final bool oldValue = _isTileAdded;
+
+                                  setState(() {
+                                    _isTileAdded = value;
+                                  });
+
+                                  try {
+                                    if (value) {
+                                      await platform.invokeMethod(
+                                        'requestAddTile',
+                                      );
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            backgroundColor: const Color(
+                                              0xFF64B5F6,
+                                            ),
+                                            behavior: SnackBarBehavior.floating,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(15.0),
+                                            ),
+                                            content: const Text(
+                                              "Đã thêm nút gạt vào cài đặt nhanh !",
+                                              style: TextStyle(
+                                                fontSize: 18,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                    } else {
+                                      await platform.invokeMethod('removeTile');
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            backgroundColor: const Color(
+                                              0xFFF87171,
+                                            ),
+                                            behavior: SnackBarBehavior.floating,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(15.0),
+                                            ),
+                                            content: const Text(
+                                              "Đã hủy nút gạt!",
+                                              style: TextStyle(
+                                                fontSize: 18,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                    }
+                                  } on PlatformException catch (e) {
+                                    log("Lỗi Tile: ${e.message}");
+                                    if (mounted) {
+                                      setState(() {
+                                        _isTileAdded = oldValue;
+                                      });
+                                    }
+                                  } finally {
+                                    // Cập nhật lại từ SharedPreferences để đồng bộ hoàn toàn
+                                    await _loadSettings();
+                                  }
+                                },
+                              ),
+                            ],
+                          ),
                         ),
                         const SizedBox(height: 12),
                         Text(

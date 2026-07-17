@@ -27,6 +27,8 @@ void main() async {
             alignment: OverlayAlignment.centerRight,
             height: 480,
             width: 200,
+            overlayTitle: "Volume Bubble đang chạy",
+            overlayContent: "Nhấn để điều chỉnh âm lượng nhanh",
           );
         }
       }

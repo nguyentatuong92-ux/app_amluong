@@ -17,10 +17,12 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.drawable.Drawable
 import java.io.ByteArrayOutputStream
+import android.Manifest
 
 
 class MainActivity : FlutterActivity() {
     private val CHANNEL = "com.example.am_luong/tile"
+    private var pendingNotificationResult: MethodChannel.Result? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -39,6 +41,10 @@ class MainActivity : FlutterActivity() {
                     PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
                     PackageManager.DONT_KILL_APP
                 )
+
+                // [CẬP NHẬT] Lưu trạng thái vào SharedPreferences ngay khi gửi yêu cầu
+                val prefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+                prefs.edit().putBoolean("flutter.isTileAdded", true).commit()
 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     val statusBarManager = getSystemService(Context.STATUS_BAR_SERVICE) as StatusBarManager
@@ -63,7 +69,7 @@ class MainActivity : FlutterActivity() {
                 
                 // Cập nhật lại SharedPreferences để Flutter biết là đã xóa
                 val prefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
-                prefs.edit().putBoolean("flutter.isTileAdded", false).apply()
+                prefs.edit().putBoolean("flutter.isTileAdded", false).commit()
                 
                 result.success(null)
             } else if (call.method == "updateTileUI") {
@@ -80,6 +86,19 @@ class MainActivity : FlutterActivity() {
                     true
                 }
                 result.success(isIgnoring)
+            } else if (call.method == "requestNotificationPermission") {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    if (android.os.Build.VERSION.SDK_INT >= 23 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
+                        result.success(true)
+                    } else if (android.os.Build.VERSION.SDK_INT >= 23) {
+                        pendingNotificationResult = result
+                        requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 101)
+                    } else {
+                        result.success(true)
+                    }
+                } else {
+                    result.success(true)
+                }
             } else if (call.method == "getInstalledApps") {
                 val pm = packageManager
                 val intent = Intent(Intent.ACTION_MAIN, null)
@@ -109,6 +128,15 @@ class MainActivity : FlutterActivity() {
             } else {
                 result.notImplemented()
             }
+        }
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == 101) {
+            val isGranted = grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED
+            pendingNotificationResult?.success(isGranted)
+            pendingNotificationResult = null
         }
     }
 

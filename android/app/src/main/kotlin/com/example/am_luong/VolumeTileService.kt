@@ -27,7 +27,7 @@ class VolumeTileService : TileService() {
 
     private fun saveTileStatus(isAdded: Boolean) {
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        prefs.edit().putBoolean(KEY_TILE_ADDED, isAdded).apply()
+        prefs.edit().putBoolean(KEY_TILE_ADDED, isAdded).commit()
     }
 
     override fun onClick() {
